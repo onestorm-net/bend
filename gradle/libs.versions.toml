@@ -1,0 +1,14 @@
+[versions]
+netty = "4.2.13.Final"
+lombok = "1.18.46"
+jspecify = "1.0.0"
+junit-jupiter = "6.1.0"
+assertj = "3.27.7"
+slf4j = "2.0.18"
+
+[libraries]
+netty-all = { module = "io.netty:netty-all", version.ref = "netty" }
+lombok = { module = "org.projectlombok:lombok", version.ref = "lombok" }
+jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
+assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
+slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
