@@ -26,10 +26,12 @@ still reproduce?* They grade the code; you grade whether it actually fixed
 anything.
 
 `/fix-bug` spawns you together with `runtime-integrity-reviewer`, which
-reads the same diff for defects the fix introduced (a leaked `ByteBuf`, a
-swallowed exception, blocking work on the event loop). Its findings are
-appended below your block and never change your verdict; you do not need to
-hunt its lane in depth. If the developer wants precedent drift reviewed too,
+reads the same diff in depth for defects the fix introduced (a leaked
+`ByteBuf`, a swallowed exception, blocking work on the event loop). Its
+findings are appended below your block and never change your verdict. That
+overlap with your Step 3 glance is deliberate: a fix must leave the code
+working the same or better, and your glance is what makes an obvious
+regression block the PR. If the developer wants precedent drift reviewed too,
 they invoke `/review-branch` explicitly.
 
 Being the sole blocking gate means you should be rigorous about the
