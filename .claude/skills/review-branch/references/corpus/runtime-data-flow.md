@@ -1,18 +1,22 @@
 # Runtime data-flow
 
-**Transform divergence.** A blanket transform applied to every value — a key-case conversion on
-all responses, a trim on all inputs, a default on all fields — mangles the data-driven ones:
-maps keyed by identifiers, dates, enums, user text. Two paths writing one store with different
-transforms drift apart. A transform that runs on success responses and not on error responses,
-or a payload keyed by user-controlled strings passing through a key-case conversion, is the
-shape to check. Name a value the transform breaks.
+**Transform divergence.** A conversion applied on one path and not its mirror drifts the two
+apart: a `ByteBuffer` ↔ `ByteBuf` conversion at the API boundary that copies on send and
+wraps on receive (so a user mutates a buffer Netty still owns), a reader index or position left
+somewhere else on one side, a string encoded UTF-8 by one writer and read with a different
+length rule by its reader. Two paths writing one registry or one connection state with
+different normalisation drift the same way. Name a value the divergence breaks.
 
-**Untrusted input driving unbounded work.** Decoded or parsed user data — an image, a
-spreadsheet, an archive, a long list — needs a size, pixel, row, or depth budget before the
-expensive operation. Name the operation, and say what else is stranded when it dies: a stored
-original without its derivative, a paid resource without its record.
+**Untrusted input driving unbounded work.** Decoded peer data (an array count, a string length,
+an endpoint list, a run of padding bytes) needs a bound before the expensive operation:
+an allocation, a loop, a re-send, a registry walk per element. Name the operation, the bound
+that is missing, and what else is stranded when it dies: a half-applied endpoint list, a
+connection left registered after its handler threw.
 
-**The client swallow.** A `catch` that resets to an empty state with no user signal presents a
-broken endpoint as "no data". Where the project bans client-side console logging, the absent
-log is not the finding; the visible state left wrong is. Say what the user concludes and what
-the operator never learns.
+**The quiet drop.** A message that has nowhere to go and goes nowhere with no signal: a send
+for an object with no registration that returns normally, an inbound `Endpoint Message` for an
+unknown id ignored with neither a disconnect nor the `Available Endpoints` resend the spec
+permits, a write to an inactive channel whose failed
+`ChannelFuture` nobody reads. This is the shape of the pre-migration bug where built-in
+packets went through the public send path and vanished. Say what the caller concludes ("sent")
+and what actually happened.

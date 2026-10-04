@@ -1,31 +1,33 @@
 # Contract & boundary integrity
 
-Data is only as good as the check at the crossing. Three censuses over the boundaries this
+Data is only as good as the check at the crossing. Two censuses over the boundaries this
 diff adds or moves.
 
 **Boundary validation.** List every site where data from outside the process enters typed
-code: an HTTP response cast into store state, a queue payload, a webhook body, a parsed file, a
-database row cast to a richer type. For each site, cite the line that checks the shape before
-the first field read. A cast with no check between the read and the use — `as Foo` on a fetch
-body, an unchecked `JSON.parse`, a row spread into a typed object — is the finding. Say what
-happens on a mismatch: fail closed, or garbage propagating downstream wearing the type, and
-name the first consumer that acts on the wrong value. Inbound request validation through the
-framework's request-validation layer is correct by design and not this census; the response
-half is.
+code: a packet's `decode` reading a `ByteBuf`, a `ProtocolUtil` reader, an `Endpoint` built
+from wire fields, a user payload decoded by an `EndpointCodec`, a configuration value handed to
+a codec constructor. For each site, cite the line that checks the value before the first use:
+the length against readable bytes, the id against its format, the flags against "at least one
+direction bit", the enum-like code against its known set. A value used with no check between
+the read and the use is the finding. Say what happens on a mismatch: fail closed with a
+`ProtocolException`, or garbage propagating downstream wearing the type, and name the first
+consumer that acts on the wrong value. A check enforced in the constructor counts only when
+every construction path (factory method and wire decode alike) goes through it.
 
-**Schema↔runtime drift.** List every pair where one artifact declares a shape and another
-produces or consumes it: a server-side resource or serializer beside the client type that reads
-it, a validator schema beside the type it claims to prove, a broadcast payload beside its
-listener, a serializer beside its parser. Diff each pair field by field. A field one side has
-and the other lacks, an optionality or nullability the two sides disagree on, a narrowing one
-side never applies — name which side is wrong and what the disagreement silently accepts or
-drops.
+**Spec↔code and encode↔decode drift.** List every pair where one artifact declares a shape and
+another produces or consumes it:
 
-**Transaction-scope integrity.** For every transaction this diff opens or edits, check what
-runs inside against when its inputs were computed: an identifier resolved before the
-transaction that a step inside renames or deletes out from under a later step; a nested begin
-whose semantics on this stack are savepoint, no-op, or error — name which, from the stack in
-the worktree, never from memory of the ORM; a read outside the transaction feeding a write
-inside it; anything fallible, slow, or external inside the closure, holding a database
-connection for its duration. State what a concurrent writer or a mid-transaction failure
-leaves behind.
+- a packet's `encode` beside its `decode`: field order, field widths, VarInt vs fixed int,
+  string length rule, what `encode` writes that `decode` never reads
+- an encoder beside its decoder across the wire: `VarInt28LengthEncoder` and
+  `VarInt28FrameDecoder` must agree on width and cap (the 21-bit vs 32-bit asymmetry shipped
+  once)
+- `protocol-v1.md` beside the code: packet ids, field layouts, the MUST rules, the disconnect
+  conditions on both sides, the `Disconnect` `Type` values, the timeout constants
+- the client's view of the flow beside the server's: who sends what in which state, and the
+  `availableRevision` / `supportedRevision` each side echoes back
+
+Diff each pair field by field. A field one side has and the other lacks, a width or
+signedness the two sides disagree on, a rule one side enforces and the other never applies:
+name which side is wrong and what the disagreement silently accepts or drops. When code and
+spec disagree, do not assume the code is right; the spec is the published contract.

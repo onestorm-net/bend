@@ -2,182 +2,172 @@
 name: fix-bug
 description: |
   Structured bug-fix workflow: identify the issue, reproduce the defect,
-  confirm it isn't already fixed on the base branch, capture the investigation in
-  docs/bugs/<slug>/BUG.md, propose the fix and wait for developer approval,
-  implement it, gate on the bug-fix-verifier agent, and gate styling/animation
-  fixes on manual browser confirmation before PR. Use whenever the user wants
+  confirm it isn't already fixed on main, capture the investigation in
+  docs/issues/<branch-name>/BUG.md, propose the fix and wait for developer
+  approval, implement it, and gate on the bug-fix-verifier agent (with
+  runtime-integrity-reviewer alongside) before PR. Use whenever the user wants
   to fix a bug, says "fix bug", "bug fix", "debug this issue", "work on bug
   <key>", "/fix-bug", or is picking up a bug-type issue. Prefer this over
-  /core-skills:plan-feature for bugs — bugs don't have wireframes or acceptance criteria,
-  they have "does the defect still reproduce?". This skill is the bug-side
-  analogue of /core-skills:plan-feature + /core-skills:implement-plan collapsed into one lighter flow.
+  /plan-feature for bugs: bugs don't have acceptance criteria, they have "does
+  the defect still reproduce?". This skill is the bug-side analogue of
+  /plan-feature + /task-writer + /next collapsed into one lighter flow.
 ---
 
 # Fix Bug
 
-End-to-end bug-fix workflow. Lighter than `/core-skills:plan-feature`: bugs don't need
-interrogation, wireframes, task breakdown, or acceptance criteria — just a
-confirmed reproduction, a root cause, an approved fix, and proof the fix held.
+End-to-end bug-fix workflow. Lighter than `/plan-feature`: bugs don't need
+interrogation, task breakdown, or acceptance criteria. They need a confirmed
+reproduction, a root cause, an approved fix, and proof the fix held.
 
-This skill reads `issue_tracker_skill` (Phase 1), `integration_branch` (Phase 2), `bug_root`
-(Phase 5), and `bug_runtime_review`, `references.hazards` and the Review › Accepted failures
-section (Phase 8) from
-`.claude/project-context.md` — see this plugin's README for how that file and its notation work.
+If a bug touches multiple modules with non-trivial design work (e.g. a race
+that reveals a missing synchronisation point between the event loop and the
+endpoint registry, or a fix that needs a `protocol-v1.md` change), promote it
+to `/plan-feature` instead. The extra structure is worth it.
 
-If a bug touches multiple domains with non-trivial design work (e.g. a race
-condition that reveals a missing synchronisation primitive), promote it to
-`/core-skills:plan-feature` instead — the extra structure is worth it.
-
-**Path 3b carve-outs.** Mechanical fixes (typo / off-by-one / null-deref
-with a stack trace) skip the hypothesis-ranking ceremony in Phase 6 and
-the post-mortem prompt in Phase 10 unconditionally. Phase 8.5's
-visual-risk gate is **not** unconditionally skipped for 3b — it still
-fires if the diff touches styling. Carve-out details live inline in
-those phases.
+**Path 3b carve-outs.** Mechanical fixes (typo / off-by-one / null-deref with
+a stack trace) skip the hypothesis-ranking ceremony in Phase 6 and the
+post-mortem prompt in Phase 10. Carve-out details live inline in those phases.
 
 ## Phase 0: Parse arguments
 
 The developer may pass an issue key, an issue URL, or nothing.
 
-**Issue key ≠ issue ID.** A key like `PROJ-0343` does NOT mean the database ID is
-343 — never extract the number from a key and use it as an ID.
+**Issue key ≠ issue ID.** A key like `BD-0043` does NOT mean the database ID is
+43. Never extract the number from a key and use it as an ID.
 
-If no argument, auto-detect from the current branch — branches from
-`/kendo-pm:prepare-issue` typically look like `<KEY>-<slug>`. If the branch has no key,
+If no argument, auto-detect from the current branch: branches from
+`/prepare-issue` look like `BD-NNNN-<kebab-slug>`. If the branch has no key,
 ask which issue this is.
 
 ## Phase 1: Fetch the issue
 
-Read `issue_tracker_skill` from `.claude/project-context.md`. Defaults to `kendo-mcp` — this
-org's in-house tracker — when unset, provided that skill is actually installed in the project.
-`none` means this project has no tracker integration: ask the user for the issue's title, type,
-and description directly instead of reading them from a tracker, then skip to Phase 2.
-
-Otherwise, read the issue through the resolved tracker skill. Keep in memory:
+Read the issue from Kendo through the `/kendo` skill (local MCP server
+`kendo`, `mcp__kendo__*` tools, project_id `1`). Keep in memory:
 
 - **id**, **key**, **title**
-- **type** — must be a bug. If it's a feature or task, stop and point the user
-  at `/core-skills:plan-feature`.
+- **type**: must be a bug. If it's a feature or task, stop and point the user
+  at `/plan-feature`.
 - **description**, **comments**, **attachments**
 
-Note any existing **branch links** — a branch may already exist.
+Note any existing **branch links**: a branch may already exist.
 
 ## Phase 2: Branch guard
 
-Resolve `<base>`, the integration branch every later phase compares against: `integration_branch`
-from `.claude/project-context.md` when set, otherwise the first of `origin/development`,
-`origin/develop` that exists, otherwise the remote default branch
-(`git symbolic-ref refs/remotes/origin/HEAD`). The remote default alone gets it wrong wherever
-work merges into a branch other than the one production ships from.
+`<base>` is `main`, Bend's integration branch. Every later phase compares
+against `origin/main` (or local `main` when the remote ref is missing).
 
-This skill does **not** create branches — that's `/kendo-pm:prepare-issue`'s job (or
-`/core-skills:newbranch` for projects without an issue tracker).
+This skill does **not** create branches. That's `/prepare-issue`'s job (or
+`/newbranch` for work without an issue).
 
 | Branch state | Action |
 |---|---|
-| On `<base>`, or on `main` / `master` | Stop. Tell the user to run `/kendo-pm:prepare-issue <KEY>` or `/core-skills:newbranch`. |
-| Branch name contains the issue key | Proceed. |
-| Any other branch | Stop. Ask if this is the right branch; if not, point at `/kendo-pm:prepare-issue`. |
+| On `main` | Stop. Tell the user to run `/prepare-issue <KEY>` or `/newbranch`. |
+| Branch name is `BD-NNNN-<slug>` with this issue's key | Proceed. |
+| Any other branch | Stop. Ask if this is the right branch; if not, point at `/prepare-issue` or `/newbranch`. |
 
-Hard stop — do not silently create a branch from here. The developer made a
-choice at branch-creation time (primary vs. worktree, existing branch vs.
-new) and this skill must not undo it.
+Hard stop: do not silently create a branch from here. The developer made a
+choice at branch-creation time and this skill must not undo it.
 
 ## Phase 3: Capture a verifiable repro
 
-First, read the code paths the bug touches — route → controller → service →
-model on the backend, page → component → store on the frontend. You can't
-pick a repro path without knowing what the feature is supposed to do.
+First, read the code paths the bug touches, in Bend's chain: frame decoder
+(`VarInt28FrameDecoder`) → `PacketDecoder` → packet class → pipeline handler →
+endpoint registry/dispatch → public API (`client-api`); outbound the reverse,
+through `PacketEncoder` / `VarInt28LengthEncoder`. Read the matching section
+of `protocol/protocol-v1.md` too: the spec is the behaviour contract, and a bug
+is often spec-vs-implementation drift. You can't pick a repro path without
+knowing what the code is supposed to do.
 
-Before picking a path, validate the issue's *Expected behaviour* / *Steps
-to reproduce* section against the feature it touches — reporter writes
-user-language and code encodes maintainer-language, so contradictions are
-common. The validation rules and the contradiction-surfacing prompt live in
+Before picking a path, validate the issue's *Expected behaviour* / *Steps to
+reproduce* section against the code and the spec. The validation rules and
+the contradiction-surfacing prompt live in
 [references/repro-paths.md](references/repro-paths.md). Only after the
 developer confirms the canonical model do you pick a path.
 
-Every fix needs **something executable or describable that demonstrates the
-defect** — that's what Phase 8's verifier checks against.
+Every fix needs **something executable that demonstrates the defect**. That's
+what Phase 8's verifier checks against.
 
 | Situation | Path |
 |---|---|
 | Stack trace / error log / clearly-broken line + mechanical fix | **3b** |
-| "It's broken somewhere around X" — need to pin down behaviour | **3a** |
-| Visual glitch, race condition, keyboard timing, browser-specific | **3c** |
-| Report says "it's broken" with no specifics | Ask for more context — don't guess |
+| "It's broken somewhere around X": need to pin down behaviour | **3a** |
+| Race, timing, half-open peer, event-loop ordering | **3a**, made deterministic (`EmbeddedChannel`, latches, manual time) |
+| Report says "it's broken" with no specifics | Ask for more context. Don't guess |
 
-Path details — when each applies, what to write into BUG.md's "Reproduction
-Steps", and the "cannot reproduce" stop condition — live in
+Path details (when each applies, what to write into BUG.md's "Reproduction
+Steps", and the "cannot reproduce" stop condition) live in
 [references/repro-paths.md](references/repro-paths.md). Load that file once
 you've picked the path.
 
-## Phase 4: Check if already fixed on the base branch
+## Phase 4: Check if already fixed on main
 
-Before writing a fix, verify the bug still exists on the base branch
-(`main`, `development`, etc.). Your branch may have diverged and a colleague
-may have already fixed it.
+Before writing a fix, verify the bug still exists on `main`. Your branch may
+have diverged and the fix may already have landed.
 
-- **Failing test (3a):** stash your test, `git fetch origin <base>`,
-  check out the file(s) under test from `origin/<base>`
-  (`git checkout origin/<base> -- <path>`), un-stash, run. Reset
-  afterwards.
-- **Clear diagnosis (3b) or manual (3c):** `git log origin/<base> -- <path>`
-  for recent fix-language commits. If line numbers / typos already differ on
-  the base branch, read the diff and confirm.
+- **Failing test (3a):** stash your test, `git fetch origin main`, check out
+  the file(s) under test from `origin/main` (`git checkout origin/main --
+  <path>`), un-stash, run it with `--rerun`. Reset afterwards.
+- **Clear diagnosis (3b):** `git log origin/main -- <path>` for recent
+  fix-language commits. If line numbers / typos already differ on `main`, read
+  the diff and confirm.
 
-If the bug doesn't reproduce on the base branch, stop. Tell the user which
-commit appears to have fixed it (link to the PR if you can find it) and
-suggest merging the base branch in instead of writing a duplicate fix.
+If the bug doesn't reproduce on `main`, stop. Tell the user which commit
+appears to have fixed it and suggest merging `main` in instead of writing a
+duplicate fix.
 
-## Phase 5: Create <bug-root>/<slug>/BUG.md
+## Phase 5: Create docs/issues/<branch-name>/BUG.md
 
-`<bug-root>` is `bug_root`, default `docs/bugs`. Use the same naming as plans:
-`<bug-root>/<KEY>-<short-slug>/`. The slug is
-2-5 words of kebab-case summarising the defect, not a copy of the title.
+The folder is the exact current branch name (`git branch --show-current`), no
+suffix stripping: `docs/issues/BD-0043-zero-length-frame/BUG.md`. Features
+use the same root with `PLAN.md`; which file exists is what marks a branch as
+plan or bug (see `.claude/references/plan-directory.md`). If the folder
+already holds a `PLAN.md`, stop and ask: this branch is a feature branch, and
+writing a `BUG.md` beside it makes the branch ambiguous to `/review-branch`
+and `/pr`.
 
 Write `BUG.md` using the template at
 [references/bug-md-template.md](references/bug-md-template.md). Fill
 **Problem** and **Reproduction Steps** now from your Phase 3 work; leave
-**Root Cause**, **Chosen Approach**, **Fix**, and **Verification** empty —
-they get filled as you progress. Set Status: `Investigating`.
+**Root Cause**, **Chosen Approach**, **Fix**, and **Verification** empty.
+They get filled as you progress. Set Status: `Investigating`.
 
 ## Phase 6: Diagnose & propose solution
 
 Explain the bug to the developer and get explicit approval before any
-shipping code moves. **No shipping code is edited in this phase** — only
-tagged debug instrumentation. The gate exists to catch a wrong diagnosis
-or a wrong choice of fix before the diff starts growing.
+shipping code moves. **No shipping code is edited in this phase**, only
+tagged debug instrumentation. The gate exists to catch a wrong diagnosis or a
+wrong choice of fix before the diff starts growing.
 
 The mechanics live in
 [references/diagnose-and-propose.md](references/diagnose-and-propose.md):
 
-- **Generate hypotheses** (3-5 ranked, falsifiable) — **skip for path 3b**
+- **Generate hypotheses** (3-5 ranked, falsifiable). **Skip for path 3b.**
 - **Pin down root cause** and write 2-4 sentences into BUG.md, citing
   `file:line`. Update Status to `Diagnosed`.
-- **Debug instrumentation hygiene** — tag temporary logs with a
+- **Debug instrumentation hygiene**: tag temporary output with a
   `[DEBUG-xxxx]` 4-hex prefix so cleanup is one grep.
 - **Decompose the fix surface** into settled vs. ambiguous sub-concerns
   before listing candidates.
-- **Explain and propose** — bug summary, root cause, candidates with
+- **Explain and propose**: bug summary, root cause, candidates with
   trade-offs, recommendation. Cap at 4 candidates.
-- **Get acceptance via `AskUserQuestion`** — clickable options, plus the
+- **Get acceptance via `AskUserQuestion`**: clickable options, plus the
   rejection-recovery rule for two consecutive dismissals.
 
 **If diagnosis reveals it isn't actually a bug, or a duplicate of an
-already-fixed/already-tracked defect** — stop here. Don't propose a
-fix for a non-bug. Explain the finding to the developer (cite
-`file:line` or the duplicate issue) and confirm via `AskUserQuestion`:
+already-fixed/already-tracked defect**, stop here. Don't propose a fix for a
+non-bug. Explain the finding to the developer (cite `file:line`, the
+`protocol-v1.md` rule, the CLAUDE.md ruling, or the duplicate issue) and
+confirm via `AskUserQuestion`:
 
-> Diagnosis suggests this isn't a bug — `<one-line reason, e.g. "the
-> feature already handles this via gesture Z" or "duplicate of
-> <KEY>, already fixed on the base branch">`. Abandon this branch?
-> - **Yes, abandon** — update Status to `Abandoned`, note why in Notes
->   / Follow-ups, and stop the workflow. Do not proceed to Phase 7 or
->   `/core-skills:pr`.
-> - **No, the diagnosis is wrong / keep investigating** — stay in
->   Phase 6, revise Root Cause with the developer's correction.
+> Diagnosis suggests this isn't a bug: `<one-line reason, e.g. "protocol-v1.md
+> requires the disconnect, this is the spec working as designed" or
+> "duplicate of BD-0031, already fixed on main">`. Abandon this branch?
+> - **Yes, abandon**: update Status to `Abandoned`, note why in Notes /
+>   Follow-ups, and stop the workflow. Do not proceed to Phase 7 or `/pr`.
+> - **No, the diagnosis is wrong / keep investigating**: stay in Phase 6,
+>   revise Root Cause with the developer's correction.
 
-For Path 3b this whole phase collapses to a single short message — don't
+For Path 3b this whole phase collapses to a single short message. Don't
 ceremonialise a typo into a four-paragraph proposal.
 
 Once a candidate is picked, write a one-liner into BUG.md's **Chosen
@@ -191,41 +181,49 @@ Normal implementation loop, using the **Chosen Approach** from Phase 6.
   diagnosis or makes the approach unworkable means stop, update Root Cause,
   return to Phase 6 with a fresh proposal, re-ask. Don't quietly switch
   mid-fix.
-- **Keep the diff minimal.** A bug fix is not a cleanup pass. Resist
-  renaming variables, deleting comments, or refactoring helpers in the same
-  diff — small fixes are cheap to review and cheap to revert. Spotted
-  issues go in BUG.md Notes / Follow-ups.
-- **Run your repro** — the failing test should now pass, manual steps
-  should now behave correctly.
-- **Run the narrow domain test suite** for the area you changed.
-- **Trust the hooks for lint and types.** If the repo runs lint at commit
-  and type checks at push, a failing hook means fix the underlying issue
-  and re-commit/re-push — don't pre-emptively rerun those checks here. If
-  the repo has no such hooks, run its lint + types check before declaring
-  done.
+- **Keep the diff minimal.** A bug fix is not a cleanup pass. Resist renaming
+  variables, deleting comments, or refactoring helpers in the same diff.
+  Spotted issues go in BUG.md Notes / Follow-ups.
+- **Respect the standing rulings.** A fix that adds a guard must add one the
+  current code can actually reach, with a real test behind it (CLAUDE.md:
+  unreachable "defensive" checks get deleted, never kept with a contrived
+  test). Wire-input failures throw `ProtocolException`; caller misuse throws
+  `IllegalArgumentException` / `IllegalStateException`. If the fix changes
+  observable wire behaviour, `protocol-v1.md` changes in the same diff.
+- **Run your repro**: the failing test should now pass.
+- **Run the module's suite** for the area you changed:
+  `./gradlew :bend-<module>:test --rerun`. javac is the type check, there are
+  no hooks or linters. If the fix crosses modules, run `./gradlew build`.
+- **Grep out debug instrumentation** before Phase 8 (see
+  diagnose-and-propose.md).
 
-Update BUG.md as you go: fill in **Fix**, change Status to `Fixing`, then
-to `Verified` only after Phase 8 passes.
+Update BUG.md as you go: fill in **Fix**, change Status to `Fixing`, then to
+`Verified` only after Phase 8 passes.
 
-## Phase 8: Spawn bug-fix-verifier
+## Phase 8: Spawn bug-fix-verifier and runtime-integrity-reviewer
 
-Spawn the `bug-fix-verifier` agent (bundled with this plugin) — it has no context from this
-conversation and works purely from BUG.md and the diff. It confirms the bug
-is gone; it doesn't re-plan or re-scope.
+Spawn the `bug-fix-verifier` agent. It has no context from this conversation
+and works purely from BUG.md and the diff. It confirms the bug is gone; it
+doesn't re-plan or re-scope.
 
-**Runtime-integrity opt-in.** When `.claude/project-context.md` sets `bug_runtime_review: true`,
-also spawn `runtime-integrity-reviewer` (bundled with this plugin), **in the same message** as the
-verifier. It reads the same diff for the defects a fix introduces while closing another: a
-response assigned after a later request, a retry that turns a delete into a no-op, a side effect
-fired inside a transaction, work that grows with the data. Unset or `false`: the verifier runs
-alone. `precedent-reviewer` stays off either way — a bug fix has no plan prose to drift from.
+Spawn `runtime-integrity-reviewer` **in the same message**, always. Bend is
+Netty code: a fix that closes one defect can open another (a `ByteBuf` no
+longer released on the new early-return, an exception now swallowed in
+`exceptionCaught`, a write whose `ChannelFuture` failure nobody hears of,
+blocking work moved onto the event loop). `precedent-reviewer` stays off: a
+bug fix has no plan prose to drift from.
+
+The review-branch skill dir is
+`"$(git rev-parse --show-toplevel)/.claude/skills/review-branch"`. If it is
+missing, skip the reviewer and say so: the verifier's gate doesn't depend on
+it.
 
 ```
 Agent({
   subagent_type: "bug-fix-verifier",
   prompt: `Verify the bug fix on this branch.
 
-Bug directory: <bug-root>/<slug>/
+Bug directory: docs/issues/<branch-name>/
 
 Read BUG.md, re-run the repro against HEAD, confirm the bug no longer
 reproduces, and glance at touched files for obvious regressions. Write
@@ -233,145 +231,84 @@ your verdict into the BUG.md Verification section and report back with
 a score (1-10). Threshold: 7.`
 })
 
-// Only when bug_runtime_review: true
 Agent({
   subagent_type: "runtime-integrity-reviewer",
   prompt: `Full-branch review, runtime-integrity lane, on a bug-fix branch.
 
 Skill dir: <review-branch skill dir>
-Plan directory: <bug-root>/<slug>/
-Diff base: origin/<base>
-Project hazards: <references.hazards from .claude/project-context.md, or "none">
-Accepted failures: <.claude/project-context.md § Review › Accepted failures, or "none">
+Plan directory: docs/issues/<branch-name>/
+Diff base: origin/main
 
 FIRST: read <skill dir>/references/finder-base.md, then your three corpus sections under
 <skill dir>/references/corpus/. Return ## Findings and ## Checked only, in the finder shape.
-No score, no severity, no waiver applied. Do NOT re-verify the reproduction — bug-fix-verifier
+No score, no severity, no waiver applied. Do NOT re-verify the reproduction: bug-fix-verifier
 owns that.`
 })
 ```
 
-`<review-branch skill dir>` is `review-branch`'s own directory, which holds the finder contract
-and corpus. Resolve it with the block in [`review-branch/SKILL.md`](../review-branch/SKILL.md)
-Step 1 (checked-in copy, then the highest cached plugin version, then a user-level install). No
-match: skip the reviewer and say so — the verifier's gate doesn't depend on it.
+Bend's hazard list and accepted-failure classes live in `finder-base.md`, so
+the spawn prompt doesn't carry them.
 
-When the reviewer returns, append its finder report **below** the verifier's block under
-`## Verification`, as a `### Runtime integrity` subsection carrying its `## Findings` and
-`## Checked` verbatim. Below, not above: `/core-skills:pr` reads the **first** `**Verdict:**` line under
-`## Verification` as the verifier's verdict, and the reviewer's block must never be the first
-thing there. Do not judge, route, or write READY / NEEDS WORK. The parent session sees the
-findings and decides what to do; they never block the verdict below.
+When the reviewer returns, append its finder report **below** the verifier's
+block under `## Verification`, as a `### Runtime integrity` subsection
+carrying its `## Findings` and `## Checked` verbatim. Below, not above: `/pr`
+reads the **first** `**Verdict:**` line under `## Verification` as the
+verifier's verdict, and the reviewer's block must never be the first thing
+there. Do not judge, route, or write READY / NEEDS WORK. The parent session
+sees the findings and decides what to do; they never block the verdict
+below.
 
-- **Score ≥ 7 AND Verdict reads `PASS`** (plain, or the literal `PASS
-  (requires developer confirmation)` that path-3c reproductions get —
-  Phase 8.5 is what resolves that string, so treat it as a pass here
-  too) — check Phase 8.5's visual-risk gate, then proceed to Phase 9.
-  Update Status to `Verified`. Runtime-integrity findings do not block this.
-- **Score < 7, OR Verdict reads `PARTIAL`/`FAIL`, OR "Required fixes
-  before PR" is non-empty** — fix what the verifier found, re-run your
-  repro, re-spawn. Don't hand off to `/core-skills:pr` until the verdict reads a
-  clean `PASS` (in either form above) with no outstanding required
-  fixes. The score and the verdict are independently-written fields; a
-  high score doesn't override a verdict or a required-fix list that
-  says otherwise. Shipping a "fix" that still reproduces — or one the
-  verifier flagged but wasn't waved through — is worse than shipping no
-  fix — it erodes trust in the issue tracker.
+- **Score ≥ 7 AND Verdict reads `PASS`**: proceed to Phase 9. Update Status
+  to `Verified`. Runtime-integrity findings do not block this.
+- **Score < 7, OR Verdict reads `PARTIAL`/`FAIL`, OR "Required fixes before
+  PR" is non-empty**: fix what the verifier found, re-run your repro,
+  re-spawn. Don't hand off to `/pr` until the verdict reads a clean `PASS`
+  with no outstanding required fixes. The score and the verdict are
+  independently-written fields; a high score doesn't override a verdict or a
+  required-fix list that says otherwise. Shipping a "fix" that still
+  reproduces is worse than shipping no fix: it erodes trust in the issue
+  tracker.
 
-If the verifier can't run the repro for environmental reasons (missing
-service, missing data), surface it to the user — don't lower the threshold.
+If the verifier can't run the repro for environmental reasons (Gradle can't
+resolve, JDK 25 toolchain missing), surface it to the user. Don't lower the
+threshold.
 
-## Phase 8.5: Visual-risk gate
+## Phase 9: Commit and hand off to /pr
 
-Claude cannot judge rendered styling or animation from source — only
-describe what the code should do. A passing verifier score does not mean
-the fix *looks* right.
+Commit with `/commit` (`fix(<scope>): <summary> (BD-NNNN)`), then run `/pr`.
+`/pr` pushes, posts the standard feedback comment on the linked Kendo issue,
+and embeds `bug-fix-verifier`'s verdict from BUG.md's `## Verification`
+section as the gate. Bug fixes are gated by the verifier, not by the pre-PR
+finders, so `/pr` will not ask for a `/review-branch` handoff on a bug
+branch.
 
-Trigger this gate if either is true:
-
-- `git diff origin/<base>...HEAD -- <component and stylesheet globs>`
-  (e.g. `'*.vue' '*.tsx' '*.css' '*.scss'`) — read the actual diff
-  content, not `--stat` (a path + line-count summary can't show whether
-  the changed lines are styling) — contains `<style>` blocks, class
-  bindings, utility classes, or animation/transition properties
-  (`transition`, `animate-`, `@keyframes`, `duration-`, `ease-`), beyond
-  a trivial one-line tweak.
-- Reproduction Steps used **path 3c** (visual glitch / animation /
-  browser-specific) — `bug-fix-verifier`'s 3c walkthrough only ever
-  reaches "PASS (requires developer confirmation)" for these; it cannot
-  close the loop itself (see `bug-fix-verifier.md` Step 2, "Manual steps
-  (3c)").
-
-Skip this gate when neither trigger condition above fired — path alone
-(3a/3b/3c) doesn't determine visual risk, diff content does. A 3b fix
-diagnosed from a stack trace or null-check stays exempt because it never
-touches styling; a 3b fix for a visible typo still trips the first
-trigger and still needs eyes on it.
-
-When triggered, stop before Phase 9 and ask via `AskUserQuestion`. Word the
-question around confirming the defect is gone, not just "does it render" —
-path 3c also covers races and cross-tab timing, which have nothing to do
-with rendering:
-
-> This change touches styling, animation, or something else I can only
-> confirm by eye. Have you re-run the reproduction steps and confirmed
-> the bug is actually fixed?
-> - **Yes, verified — proceed to /core-skills:pr**
-> - **Run a browser-driving skill or the Playwright MCP first** — good
->   for catching visual issues via screenshots, but take a look yourself
->   too; it won't catch timing or race-condition problems
-> - **No — hold off, I'll check manually**
-
-Each answer resolves BUG.md's `## Verification` section before Phase 9 can
-run — a path-3c fix otherwise carries the verifier's literal `PASS
-(requires developer confirmation)` string, which `/core-skills:pr`'s gate does not
-recognise as a plain `PASS`:
-
-- **Yes** — update **Verdict:** to plain `PASS`. This is what actually
-  unblocks `/core-skills:pr`'s gate (see [`pr/SKILL.md`](../pr/SKILL.md) § Bug
-  branches) — confirming here without rewriting the Verdict leaves the
-  old string in place and `/core-skills:pr` would ask for an override anyway.
-- **Run a browser-driving skill or the Playwright MCP first** — after it
-  finishes, re-ask the same question above. Don't fall through to Phase 9
-  on completion alone; a screenshot is not a "Yes."
-- **No — hold off** — stop the workflow here, do not hand off to `/core-skills:pr`.
-  Update **Verdict:** to `BLOCKED — pending manual browser confirmation`
-  and set **Status:** back to `Fixing`. `/core-skills:pr`'s bug-branch gate reads this
-  section directly, so this is what actually stops a later `/core-skills:pr` run in a
-  fresh session — a note in Notes / Follow-ups alone would not.
-
-## Phase 9: Hand off to /core-skills:pr
-
-Run `/core-skills:pr`. It will push, post the standard feedback comment on the
-linked issue, and embed `bug-fix-verifier`'s verdict from BUG.md's
-`## Verification` section as the gate — bug fixes are gated by the
-verifier, not by the pre-PR finders, so `/core-skills:pr` will not ask for a
-`/core-skills:review-branch` handoff on a bug branch.
-
-PR title names the defect (`fix: modal backdrop sticks after escape during
-open animation`) rather than the issue key alone. PR body cites the issue
-key plus a one-paragraph summary lifted from BUG.md's Fix section so
-reviewers can grasp the change without opening the file.
+PR title names the defect (`fix(protocol): reject zero-length frame encoded
+as 0x80 0x00`) rather than the issue key alone. PR body cites the issue key
+plus a one-paragraph summary lifted from BUG.md's Fix section so the change
+reads without opening the file.
 
 ## Phase 10: Post-mortem prompt (optional)
 
-Once `/core-skills:pr` is open and the verifier has signed off, you have more
-information than when Phase 3 started. Spend 30 seconds asking: **what
-would have prevented this bug?**
+Once `/pr` is open and the verifier has signed off, you have more information
+than when Phase 3 started. Spend 30 seconds asking: **what would have
+prevented this bug?**
 
-If the answer is architectural — no good test seam (flagged in BUG.md
-Notes), tangled callers, hidden coupling, a class of bug that keeps
-recurring at the same boundary — surface it via `AskUserQuestion`:
+If the answer is structural (no good test seam, flagged in BUG.md Notes; the
+built-in and endpoint send paths tangled again; a class of bug that keeps
+recurring at the same boundary, like a length prefix sizing an allocation
+before a readable check), surface it via `AskUserQuestion`:
 
-> Would an architecture-improvement pass help here? Reason: `<one specific
-> line — e.g. "no correct seam for the regression test" or "third null-deref
-> at the controller→action boundary this quarter">`.
+> Would a structural fix help here? Reason: `<one specific line, e.g. "no
+> seam to drive the handler without a real socket" or "second length-prefix
+> pre-allocation bug in the packet readers">`.
 
-If "yes," hand off with the specific pointer — an architecture skill (if the
-project has one) works best with a concrete starting point, not "improve
-something."
+If "yes," file it as a Kendo issue with the specific pointer, or hand it to
+`/plan-feature`. A concrete starting point beats "improve something."
+
+Also ask whether the bug's lesson belongs in `CLAUDE.md` (a new ruling, or a
+history entry beside the existing frame-decoder ones). That file is where
+Bend records why things are built the way they are.
 
 **Skip this phase entirely for path 3b mechanical fixes** (typos,
-off-by-ones, missing null checks). Asking after every trivial fix turns
-the prompt into noise the developer learns to ignore. Reserve it for
-fixes where the diagnosis surfaced a structural smell.
+off-by-ones, missing null checks). Asking after every trivial fix turns the
+prompt into noise the developer learns to ignore.

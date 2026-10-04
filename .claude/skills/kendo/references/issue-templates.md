@@ -1,8 +1,12 @@
 # Issue Templates
 
-Single source of truth for how issues are written in this project. Used by `/newbranch`,
-`/kendo-pm:triage-reports`, `/plan-feature`, `/task-writer`, and `/kendo-pm:kendo-cli` — any skill that creates
-or promotes issues.
+Single source of truth for how Bend issues are written. Used by `/newbranch`, `/plan-feature`,
+`/task-writer`, and any skill that creates issues through `mcp__kendo__create-issue-tool`.
+
+Bend is a library, so the "user" in an issue is whoever consumes it: an **API consumer** writing
+code against `client-api` (or a future `server-api`), or a **protocol implementer** writing a
+peer from `protocol/protocol-v1.md`. Acceptance criteria describe what they can observe: public
+API behaviour, bytes on the wire, when a connection is closed and with which `Disconnect` type.
 
 ## Contents
 
@@ -17,13 +21,14 @@ or promotes issues.
 
 ## Issue Types & Priorities
 
-These numeric values are the actual Kendo MCP schema — verify against `mcp__kendo__create-issue-tool` if in doubt.
+These numeric values are the actual Kendo MCP schema; verify against
+`mcp__kendo__create-issue-tool` if in doubt.
 
 | Type     | Value | Template                                    |
 |----------|-------|---------------------------------------------|
 | Feature  | `0`   | [User Story](#feature-template-user-story)  |
 | Bug      | `1`   | [Bug Report](#bug-template-bug-report)      |
-| Task     | `2`   | No fixed template — see [§ Task](#task).    |
+| Task     | `2`   | No fixed template, see [§ Task](#task).     |
 
 | Priority | Value |
 |----------|-------|
@@ -33,54 +38,57 @@ These numeric values are the actual Kendo MCP schema — verify against `mcp__ke
 | Low      | `3`   |
 | Lowest   | `4`   |
 
+Attach the issue to its 0.1 epic via `epic_id` (`client-api` = 2, `client-netty` = 3,
+`server-netty` = 4, `Release hygiene` = 5).
+
 ---
 
 ## Feature Template (User Story)
 
-Use for anything that delivers new user-facing functionality. Keep the description small
-enough that a developer can hold the whole thing in their head — detailed design goes in
-`/plan-feature` output, not the issue itself.
+Use for new API surface or new protocol behaviour. Keep the description small enough to hold in
+your head; detailed design goes in `/plan-feature` output (`docs/issues/<branch>/PLAN.md`), not
+the issue.
 
-For Feature issues, Acceptance Criteria (AC) describe user-observable outcomes — what the user sees or can do — not mechanism. "Clicking 'Log out' calls DELETE /logout" prescribes implementation; "Clicking 'Log out' returns the user to the login page" describes an outcome. AC written at the outcome layer stay stable as implementation evolves; mechanism-layer AC shift as design crystallises.
+For Feature issues, AC describe observable outcomes, not mechanism. "`Client.send` looks up the
+codec in a `HashMap`" prescribes implementation; "`Client.send` with an unregistered payload type
+throws `IllegalArgumentException` naming the type" describes an outcome. AC written at the
+outcome layer stay stable as the implementation evolves.
 
 ```markdown
 # [Short, descriptive title]
 
 ## User Story
-As a [role], I want [functionality] so that [goal].
+As an [API consumer / protocol implementer], I want [functionality] so that [goal].
 
 ## Context
-[1–2 sentences of background: why is this on the table now, what problem does it solve?]
+[1-2 sentences: why now, which spec section or CLAUDE.md decision this implements.]
 
 ## Acceptance Criteria
-1. [concrete, testable criterion]
+1. [concrete, testable criterion: API behaviour or wire behaviour]
 2. [concrete, testable criterion]
 3. [concrete, testable criterion]
 
 ## Scope
 **In:**
 - [in scope]
-- [in scope]
 
 **Out:**
-- [explicitly excluded — prevents scope creep at review]
+- [explicitly excluded; prevents scope creep at review]
 
 ## Testing
-- 100% coverage for new code
-- [which scoped test suite must be green — name it]
+- `./gradlew :bend-<module>:test --tests '<fully.qualified.TestClass>' --rerun`
+- [which test class(es) gain cases; JaCoCo report shows no new uncovered lines]
 ```
 
-Aim for **3–5 acceptance criteria**. If you need more, the story is probably too big — split it.
+Aim for **3-5 acceptance criteria**. If you need more, the story is probably too big: split it.
 
 ---
 
 ## Bug Template (Bug Report)
 
-Use for defects in existing behaviour. The defining feature of a bug report is the
-"Problem" + "Cause" pairing: what the user observes, and (when known) why. If you
-haven't yet diagnosed the cause, replace the `## Cause` section with
-`## Steps to reproduce` + `## Expected behavior` + `## Actual behavior` so the
-next developer can reproduce and diagnose.
+Use for defects in existing behaviour. The defining feature is the "Problem" + "Cause" pairing:
+what is observed, and (when known) why. If the cause isn't diagnosed yet, use the
+reproduction-first shape below.
 
 ### When cause is known
 
@@ -88,11 +96,11 @@ next developer can reproduce and diagnose.
 # [Short bug title]
 
 ## Problem
-[What users see / what goes wrong, in 1–3 sentences.]
+[What goes wrong, observable from the API or the wire, in 1-3 sentences.]
 
 ## Cause
-[Technical analysis: which file, which function, why it fails.
-Reference line numbers or commits if it helps.]
+[Technical analysis: which class, which method, why it fails.
+Reference the protocol-v1.md rule it violates if there is one.]
 
 ## Acceptance Criteria
 - [concrete observable behaviour after the fix]
@@ -101,19 +109,19 @@ Reference line numbers or commits if it helps.]
 
 ## Scope
 **In:**
-- [specific files/functions that get touched]
+- [specific classes/methods that get touched]
 
 **Out:**
 - [broader refactors that are tempting but deserve a separate issue]
 
 ## Testing
-- [which test suite must be green]
-- [regression check: which existing flow must still work]
+- `./gradlew :bend-<module>:test --tests '<fully.qualified.TestClass>' --rerun`
+- [the test method that goes red to green, named `method_condition_expected`]
 ```
 
-Bug AC describe observable state after the fix — what the user experiences when the defect is no longer present. Edge cases and regressions belong here too.
-
-The `## Cause` section names where the failure is — diagnosis, not prescription. `## Scope` specifies an area of work, not a developer instruction — write the area ("board fetch logic"), not a verb phrase.
+Bug AC describe observable state after the fix. Edge cases and regressions belong here too.
+`## Cause` names where the failure is (diagnosis, not prescription). `## Scope` names an area of
+work ("array-length readers in `ProtocolUtil`"), not a developer instruction.
 
 ### When cause is unknown (reproduction-first report)
 
@@ -121,46 +129,49 @@ The `## Cause` section names where the failure is — diagnosis, not prescriptio
 # [Short bug title]
 
 ## Problem
-[What users see, in 1–3 sentences.]
+[What is observed, in 1-3 sentences.]
 
 ## Context
-[Which environment, which account, which flow led here.]
+[Which module, which side (client/server), which connection phase: handshake, endpoint
+negotiation, keep-alive, endpoint messages.]
 
 ## Steps to reproduce
-1. [step]
+1. [step, ideally the exact bytes sent or the API calls made]
 2. [step]
-3. [step]
 
 ## Expected behavior
-[What should have happened.]
+[What should have happened, citing protocol-v1.md where it applies.]
 
 ## Actual behavior
-[What actually happens — including error messages, stack traces, screenshots.]
+[What actually happens, including exception type, message and stack trace.]
 
 ## Possible causes
-[Optional: hypotheses to investigate. If you have nothing, drop the section.]
+[Optional: hypotheses to investigate. Drop the section if you have none.]
 
 ## Scope
 **In:** [what you think needs to be touched]
 **Out:** [what is explicitly out of scope]
 
 ## Testing
-- [how the fix is validated]
+- [how the fix is validated: Gradle command and test class]
 ```
 
-AC are not written at this stage. This template captures what's needed to reproduce and diagnose — AC belong in the fix issue once the cause is known and scope is clear.
+AC are not written at this stage; they belong in the fix issue once the cause is known.
 
 ---
 
 ## Task
 
-Tasks use direct description — no fixed template. Describe the work, its motivation, and what done looks like.
+Tasks use direct description, no fixed template. Describe the work, its motivation, and what
+done looks like, at the level appropriate to the task:
 
-Acceptance Criteria should describe what 'done' looks like at the level appropriate to the task. For example:
-
-- **Refactoring** — structural change is the requirement. AC name the classes, call patterns, or invariants that must hold after the change.
-- **Infrastructure** — system-observable behaviour. AC describe what the system does (queue dispatch, cache hit, retry on failure), not what users see.
-- **Research / investigation** — artifact completion. AC describe the deliverable and what makes it actionable (document exists, covers these questions, concrete enough to file follow-up issues from).
+- **Refactoring**: structural change is the requirement. AC name the classes, call patterns or
+  invariants that must hold afterwards (e.g. "`client-api` has no `io.netty` import").
+- **Build / tooling**: AC describe what the build does (`./gradlew build` produces X, a task
+  fails on Y), not how it's wired.
+- **Research / investigation**: AC describe the deliverable and what makes it actionable (the
+  decision recorded in CLAUDE.md, covering these questions, concrete enough to file follow-up
+  issues from).
 
 ---
 
@@ -168,32 +179,107 @@ Acceptance Criteria should describe what 'done' looks like at the level appropri
 
 ### Do
 
-- **English prose** — all user-facing content (user stories, bug reports) is English. Technical terms (class names, HTTP codes, file paths) stay literal.
-- **Testable criteria** — "User can log out" ✗; "Clicking 'Log out' returns the user to the login page" ✓. Use measurable values or design token references for precision.
-- **Concrete values for performance and thresholds** — name a measured or agreed value (`< 10 s` for up to 1 000 issues, `30-second TTL`), not prose hedges (`within a reasonable time`, `fast enough`). If the value isn't yet determined, write `[TBD: <what needs deciding and by whom>]` rather than leaving the hedge in place.
-- **Concrete testing sections** — name the specific test suite, single-file run, or arch test, not "make sure it works". When the repo has scoped suites (per domain, per package, per file), name the scope the change touches rather than the whole slow suite. When the repo's standard gate *is* the whole suite, name that gate.
-- **Design decisions in PLAN.md** — keep architectural choices in `/plan-feature` output (PLAN.md, DECISIONS.md), not the issue body.
-- **Scope in two columns** — `**In:**` and `**Out:**`. The `Out:` list is often more valuable than `In:` because it prevents scope creep.
-- **Right-size** — 2–5 days of work per issue. More? Split or use an epic (`mcp__kendo__create-epic-tool`). Much less? Maybe doesn't need its own issue.
-- **Code-fences** for identifiers (class names, column names, command names). Keeps the issue readable in markdown renderers and in search.
+- **English prose.** Technical terms (class names, packet names, Gradle tasks) stay literal.
+- **Testable criteria.** "Handles big frames" ✗; "A frame whose length prefix exceeds
+  `maximumFrameLength` raises `ProtocolException` before any buffer is allocated" ✓.
+- **Concrete values for limits and timeouts.** Name the value (`4 MB` frame cap, `30 s`
+  handshake timeout, `16` NUL bytes), not a hedge (`reasonable size`). If it isn't decided yet,
+  write `[TBD: <what needs deciding>]` rather than leaving the hedge.
+- **Spec traceability.** When an AC implements or enforces a `protocol-v1.md` rule, cite the
+  section. When the issue changes the spec, say so in Scope.
+- **Concrete testing sections.** Name the targeted Gradle command
+  (`./gradlew :bend-protocol:test --tests 'net.onestorm.bend.protocol.codec.VarInt28FrameDecoderTest' --rerun`)
+  and the test class, not "make sure it works". `./gradlew build` is the cross-module gate;
+  name it only when the change spans modules.
+- **Design decisions in PLAN.md / DECISIONS.md**, not the issue body.
+- **Scope in two columns.** `**In:**` and `**Out:**`; the `Out:` list prevents scope creep.
+- **Right-size.** One PR per issue. Bigger: split it and group the parts under the epic.
+- **Code-fences** for identifiers (classes, packets, Gradle tasks).
 
 ### Avoid
 
-- Implementation details in the body — unless a bug's cause requires them.
-- Shallow testing sections like "make sure it works" or "all tests keep passing".
-- The whole slow suite as the only check when the repo has scoped suites — name the affected scope instead.
-- Vague criteria ("it must be fast", "it must be pretty").
-- Multi-week epics in a single issue.
+- Implementation details in the body, unless a bug's cause requires them.
+- Testing sections like "make sure it works" or "all tests keep passing".
+- Vague criteria ("must be fast", "must be robust").
+- Defensive checks for cases the code can't produce as AC: an unreachable branch is deleted,
+  not specified (see CLAUDE.md, "Testing / coverage").
 
 ### Title Conventions
 
-- Start with a verb or noun that names the problem — not the proposed solution.
-- Good: `Board shows issues outside the active sprint` (describes the symptom).
-- Also good: `User can reset password` (describes the desired functionality).
-- Avoid: `Fix board filter bug` (no symptom, no feature — empty for search).
+- Name the symptom or the capability, not the proposed fix.
+- Good: `Decoder allocates arrays sized by an unchecked length prefix` (symptom).
+- Also good: `Client can register an endpoint handler at runtime` (capability).
+- Avoid: `Fix decoder bug` (no symptom, no capability, useless in search).
 
 ---
 
 ## Examples
 
-Filled-in examples are stack-specific (Vue/Laravel/Pest/etc.) and stay consumer-side: a project keeps its own examples file in the repo and names it as `references.issue_examples` in `.claude/project-context.md`, and every skill that writes an issue reads it beside this file. This file intentionally ships templates only.
+### Feature
+
+```markdown
+# Client advertises its supported endpoints after receiving Available Endpoints
+
+## User Story
+As an API consumer, I want the client to tell the server which endpoints I have handlers for so
+that the server only routes messages I can handle.
+
+## Context
+Implements the Supported Endpoints flow in protocol-v1.md. CLAUDE.md "In-flight work (client)"
+decided to resend the whole set (not a delta) on each trigger.
+
+## Acceptance Criteria
+1. After an `Available Endpoints` packet arrives, the client sends one `Supported Endpoints`
+   packet containing exactly the ids that are both available and registered locally.
+2. Registering a handler for an id already in the available list triggers a new
+   `Supported Endpoints` packet with the full updated set.
+3. Registering a handler for an id the server hasn't advertised sends nothing.
+4. `Supported Endpoints` goes out on the built-in packet path, never through `Client.send`.
+
+## Scope
+**In:**
+- `client-netty` handshake/endpoint handler
+- the registry hook in `client-api` that signals a new registration
+
+**Out:**
+- unregister handling (separate issue)
+- server-side acknowledgement timeout
+
+## Testing
+- `./gradlew :bend-client-netty:test --tests 'net.onestorm.bend.client.netty.SupportedEndpointsTest' --rerun`
+- `EmbeddedChannel` tests asserting the outbound packets, e.g.
+  `availableEndpoints_registeredSubset_sendsIntersection`
+```
+
+### Bug (cause known)
+
+```markdown
+# Array readers allocate before checking the buffer holds the claimed length
+
+## Problem
+A peer can send a small frame whose array-length VarInt claims ~2^31 elements; the decoder
+attempts a multi-gigabyte allocation and the process dies with `OutOfMemoryError`, which the
+decoder's `catch (Exception e)` does not catch.
+
+## Cause
+`ProtocolUtil.readVarIntArray` and `AvailableEndpointsPacket.readEndpointArray` call
+`new int[length]` / `new Endpoint[length]` straight from the length prefix, with no
+`readableBytes()` check. `readString` already guards this; the array readers don't.
+
+## Acceptance Criteria
+- An array length greater than the buffer's readable bytes raises `ProtocolException` without
+  allocating.
+- A negative array length raises `ProtocolException`.
+- Valid arrays, including empty ones, still decode unchanged.
+
+## Scope
+**In:**
+- array-length readers in `ProtocolUtil` and `AvailableEndpointsPacket`
+
+**Out:**
+- requiring canonical VarInt encoding (declined, see CLAUDE.md)
+
+## Testing
+- `./gradlew :bend-protocol:test --tests 'net.onestorm.bend.protocol.util.ProtocolUtilTest' --rerun`
+- red to green: `readVarIntArray_lengthExceedsReadable_throws`
+```

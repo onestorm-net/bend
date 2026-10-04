@@ -1,47 +1,39 @@
 ---
 name: catchup
 description: |
-  Load the full context of the current branch and check alignment with the base: git diff summary,
-  commit history, plan/task files, decisions, and (if the project has an issue-tracker skill) the
-  upstream issue details. Reports how far behind the base the branch is and offers to merge on
-  confirmation. Resolves merge conflicts intelligently (auto-resolves obvious ones, asks on
+  Load the full context of the current branch and check alignment with main: git diff summary,
+  commit history, plan/bug/task files in docs/issues/<branch>/, decisions, and the Kendo issue
+  details. Reports how far behind main the branch is and offers to merge on confirmation. Resolves merge conflicts intelligently (auto-resolves obvious ones, asks on
   ambiguous ones). Use this skill whenever the user wants to understand what the current branch
   is about, needs context after a /clear, starts a new session, says "what am I working on",
   "load context", "catch me up", "branch context", "where was I", "summarize this branch",
-  "catchup", "sync my branch", "align with base", "update branch", or any variant of wanting to
+  "catchup", "sync my branch", "align with main", "update branch", or any variant of wanting to
   understand or sync the current state of work. Also use when the user just passes a branch name
   or issue key and expects you to load its context. Trigger on session start when the branch is
-  not the default branch and the user's first message implies they want to resume work.
+  not main and the user's first message implies they want to resume work.
 ---
 
 # Branch Catchup
 
-Load everything about the current branch, check alignment with the base branch, and produce a
-concise working summary so you (and the user) can hit the ground running.
+Load everything about the current branch, check alignment with `main`, and produce a concise
+working summary so you (and the user) can hit the ground running.
 
-This skill is project-agnostic: it never assumes a specific issue-tracker, plan layout, or issue
-key format. It reads `plan_root` (Step 1.5) and `issue_tracker_skill` (Step 2) from
-`.claude/project-context.md` — see this plugin's README for how that file and its notation
-work. `issue_tracker_skill` is the one field here with an org-level default rather than a plain
-skip — see Step 2. No file yet: offer `/core-skills:install` (which builds it from the shipped starter template
-at `references/project-context-template.md`), don't require it.
+The base is always `main`. The tracker is Kendo via the local `kendo` MCP server
+(`mcp__kendo__*` tools only), and planning artifacts live in `docs/issues/<branch-name>/`.
 
-## Step 1: Identify the branch, base, and any issue key
+## Step 1: Identify the branch, base, and issue key
 
 1. Run `git branch --show-current` to get the branch name
-2. Determine the base branch:
-   ```bash
-   gh pr view --json baseRefName --jq '.baseRefName' 2>/dev/null || git symbolic-ref refs/remotes/origin/HEAD --short 2>/dev/null | sed 's|origin/||'
-   ```
-3. If on the default branch (main/master/develop), skip alignment reporting — just output context
-4. Extract any issue key prefix from the branch name (e.g. `KD-0341` from `KD-0341-oauth-login-integratie` — any `[A-Z]+-\d+`-shaped token); Step 2's tracker lookup uses it.
-5. Resolve the plan directory with the canonical algorithm in
-   [`plan-directory.md`](../../references/plan-directory.md) (shipped with this plugin, shared
-   with `next`, `task-writer`, `implement-plan`, `review-branch` and `pr`), under `plan_root`
-   (default `docs/plans`). It tries the folder named after the branch first, then a single folder
-   starting with the issue key. Use its `catchup` fallback instead of asking: `PLAN.md` /
-   `TASKS.md` in the repository root, then "no plan directory"; several key-prefix matches → name
-   them all in the summary rather than reading one.
+2. If on `main`, skip alignment reporting and just output context
+3. Extract the issue key from the branch name (`BD-\d{4}`, e.g. `BD-0007` from
+   `BD-0007-claude-skills`); Step 2's Kendo lookup uses it.
+4. Resolve the branch's directory with
+   [`.claude/references/plan-directory.md`](../../references/plan-directory.md) (shared with
+   `next`, `task-writer`, `commit`, `review-branch` and `pr`). It tries
+   `docs/issues/<branch-name>/` first, then a single folder starting with the issue key. Use its
+   `catchup` fallback instead of asking: report "no plan directory"; several key-prefix matches →
+   name them all in the summary rather than reading one. Whether the directory holds `PLAN.md` or
+   `BUG.md` tells you if this is a plan or a bug branch.
 
 ## Step 2: Gather context (run all in parallel)
 
@@ -49,35 +41,32 @@ Collect these data sources simultaneously:
 
 | Source | Command / path | What to capture |
 |--------|---------------|-----------------|
-| **Commits** | `git log <base>..HEAD --oneline` | All commits on this branch |
-| **Diff stat** | `git diff <base>...HEAD --stat` | Files changed + insertions/deletions |
-| **TASKS.md** | `TASKS.md` or `<plan-dir>/TASKS.md` | Progress: count completed vs total tasks |
-| **PLAN.md** | `PLAN.md` or `<plan-dir>/PLAN.md` | High-level plan summary (first ~50 lines) |
-| **DECISIONS.md** | `<plan-dir>/DECISIONS.md` | Key architectural decisions and their status |
-| **Issue tracker** | the skill named by `issue_tracker_skill` in `.claude/project-context.md`, defaulting to `kendo-mcp` — this org's own in-house tracker — when the field is unset | Issue title, description, status, assignee — only if the branch has an issue key AND a tracker skill (explicit or default) resolves |
-| **Divergence** | `git fetch origin && git rev-list --left-right --count origin/<base>...HEAD` | Commits behind/ahead of base |
+| **Commits** | `git log origin/main..HEAD --oneline` | All commits on this branch |
+| **Diff stat** | `git diff origin/main...HEAD --stat` | Files changed + insertions/deletions |
+| **TASKS.md** | `<dir>/TASKS.md` | Progress: count completed vs total tasks |
+| **PLAN.md** | `<dir>/PLAN.md` | High-level plan summary (first ~50 lines) |
+| **BUG.md** | `<dir>/BUG.md` | Bug branches: problem, cause, and the first `**Verdict:**` under `## Verification` if present |
+| **DECISIONS.md** | `<dir>/DECISIONS.md` | Key design decisions and their status |
+| **Kendo issue** | `mcp__kendo__prepare-issue-context-tool` with `issue_key: "BD-NNNN"` | Issue title, description, lane, assignee (only if the branch has an issue key) |
+| **Divergence** | `git fetch origin main && git rev-list --left-right --count origin/main...HEAD` | Commits behind/ahead of `main` |
 
-`issue_tracker_skill: none` opts out of the default explicitly, for a project that genuinely has
-no issue-tracker integration rather than one that simply hasn't set the field yet.
-
-If any source doesn't exist (no plan dir, no DECISIONS.md, no `.claude/project-context.md`, no
-resolved tracker skill — field unset AND `kendo-mcp` isn't installed in this project, or field
-is `none`), skip it silently — don't error.
+If any source doesn't exist (no directory, no DECISIONS.md, no issue key), skip it silently;
+don't error.
 
 ## Step 3: Output a working summary
 
-Present the summary in this format — keep it concise, not a wall of text:
+Present the summary in this format. Keep it concise, not a wall of text:
 
 ```
 ## Branch: <branch-name>
-**Issue:** <ISSUE-KEY> — <issue title>             ← only if issue tracker integration produced data
-**Status:** <issue status from tracker>            ← only if issue tracker integration produced data
+**Issue:** <BD-NNNN>: <issue title>               ← only if the Kendo lookup produced data
+**Lane:** <lane name from Kendo>                    ← only if the Kendo lookup produced data
 
-### Alignment with <base>
-<"Up to date" OR "X commits behind — say 'sync' to merge">
+### Alignment with main
+<"Up to date" OR "X commits behind, say 'sync' to merge">
 
 ### What this branch does
-<2-3 sentence summary derived from the plan and commits>
+<2-3 sentence summary derived from PLAN.md or BUG.md and the commits>
 
 ### Progress
 <X/Y tasks complete>
@@ -86,26 +75,26 @@ Present the summary in this format — keep it concise, not a wall of text:
 - [ ] Remaining tasks (one line each)
 
 ### Key decisions                                  ← only if DECISIONS.md exists
-<Only list decisions that matter for continuing work — skip obvious or already-resolved ones>
+<Only list decisions that matter for continuing work; skip obvious or already-resolved ones>
 
 ### Recent commits (last 5)
 <short log>
 
 ### Files changed
-<diff stat summary — e.g. "42 files changed across src/ and tests/">
+<diff stat summary, e.g. "12 files changed across protocol/ and client-api/">
 ```
 
 **Important:**
 - The summary should be scannable in under 30 seconds
-- Don't reproduce full plan text — summarize it
+- Don't reproduce full plan text; summarize it
 - For tasks, show the status and what's next, not the full task details
 - For decisions, only surface ones that affect how to continue (skip resolved/obvious ones)
-- If all tasks are complete, say so and suggest next steps (PR, review, etc.)
-- Always report the alignment status — the user should know whether they're on stale code
+- If all tasks are complete, say so and suggest next steps (`/review-branch`, `/pr`)
+- Always report the alignment status: the user should know whether they're on stale code
 
-## Step 4: Align with base (only when the user confirms)
+## Step 4: Align with main (only when the user confirms)
 
-Do NOT merge automatically. After showing the summary, if the branch is behind the base, tell
+Do NOT merge automatically. After showing the summary, if the branch is behind `main`, tell
 the user how many commits behind they are and wait for confirmation (e.g., "sync", "merge it",
 "yes", "go ahead").
 
@@ -119,10 +108,10 @@ git stash push -m "catchup-auto-stash"
 ```
 Remember to pop the stash after the merge completes.
 
-### 4b. Merge the base branch
+### 4b. Merge main
 
 ```bash
-git merge origin/<base> --no-edit
+git merge origin/main --no-edit
 ```
 
 Using merge (not rebase) because it's non-destructive and safe for branches already pushed to
@@ -132,30 +121,35 @@ origin. No force-push needed, history is preserved.
 
 Report how many commits were pulled in and move on.
 
-### 4d. If there are merge conflicts — resolve them
+### 4d. If there are merge conflicts, resolve them
 
 For each conflicting file:
 
-1. **Read the conflict markers** — understand what both sides changed and why
-2. **Check the git log for both sides** — `git log --oneline origin/<base> -- <file>` and
+1. **Read the conflict markers**: understand what both sides changed and why
+2. **Check the git log for both sides**: `git log --oneline origin/main -- <file>` and
    `git log --oneline HEAD -- <file>` to understand the intent behind each change
-3. **Read the surrounding code** — understand the broader context of the conflicting area
+3. **Read the surrounding code**: understand the broader context of the conflicting area
 4. **Resolve based on clarity:**
    - **Clear-cut conflicts** (one side didn't touch the area, or changes are in different logical
      sections) → resolve automatically:
-     - Base changed something the feature branch didn't touch nearby → take base's version
-     - Feature branch changed something base didn't touch nearby → keep the feature branch version
-     - Generated files (lock files, compiled assets) → regenerate after resolving source conflicts
-     - Migration timestamp collisions → rename the feature branch migration to a later timestamp
+     - `main` changed something the feature branch didn't touch nearby → take `main`'s version
+     - Feature branch changed something `main` didn't touch nearby → keep the feature branch version
+     - `gradle/libs.versions.toml` version bumps on both sides → take the higher version unless
+       the branch pinned one on purpose (check its commit message), then rerun `./gradlew build`
+     - `CLAUDE.md` / `protocol/protocol-v1.md` → never auto-resolve if both sides edited the same
+       section; these are design records, ask
    - **Ambiguous conflicts** (both sides changed the same logic, or changes seem contradictory) →
      describe the conflict to the user and ask for guidance before resolving. Show what each side
      intended and propose a resolution, but wait for confirmation.
-5. **Stage the resolved file** — `git add <file>`
+5. **Stage the resolved file**: `git add <file>`
 
 After all conflicts are resolved:
 ```bash
 git commit --no-edit
 ```
+
+If any resolved file is Java source or Gradle config, run `./gradlew build` before reporting: two
+sides that were each green can still merge into a broken build. Do not push; `/pr` pushes.
 
 ### 4e. Restore stashed changes
 
@@ -169,10 +163,10 @@ If the stash pop itself conflicts, resolve those using the same strategy.
 
 ```
 ### Alignment complete
-Merged X commits from <base> (clean)
+Merged X commits from main (clean)
 ```
 Or if conflicts were resolved:
 ```
 ### Alignment complete
-Merged X commits from <base> — resolved conflicts in: file1.ts, file2.py
+Merged X commits from main, resolved conflicts in: VarInt28FrameDecoder.java, CLAUDE.md
 ```

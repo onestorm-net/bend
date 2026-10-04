@@ -1,156 +1,149 @@
-# Security & Cost Surface — canonical questions
+# Security & Cost Surface: canonical questions
 
 This is the **single source of truth** for the seven row questions that:
 
-- the planner answers in PLAN.md's `## Security & Cost Surface` section during Phase 1.6 of `/core-skills:plan-feature`
+- the planner answers in PLAN.md's `## Security & Cost Surface` section during Phase 1.6 of `/plan-feature`
 - the `surface-reviewer` agent grades the answers against at plan-time (prose-vs-Approach) and `precedent-reviewer` runs drift detection against at PR-time (prose-vs-code)
 
-The rows are deliberately **question-shaped, not field-shaped**. Filling in a form trains for the past; answering a question generalises to the next feature. Worked examples below each row show what a strong answer reads like — they are illustrative, not templates. They name the kind of file or rule to cite; substitute the repo's own.
+"Cost" here is resource cost: memory, CPU, threads and connections a peer can make the other side spend. Bend is a library speaking a custom wire protocol to peers it doesn't control, so the surface is the bytes that arrive, the connection they arrive on, and the API a library user calls.
+
+The rows are deliberately **question-shaped, not field-shaped**. Filling in a form trains for the past; answering a question generalises to the next feature. Worked examples below each row show what a strong answer reads like; they are illustrative, not templates.
 
 For the rationale and sycophancy guards, see [`quality-gates.md`](quality-gates.md) § Phase 1.6.
 
 ---
 
-## Row 1 — Untrusted input → LLM prompt
+## Row 1: Untrusted wire input and allocation bounds
+
+Every byte read off the channel was chosen by the peer. A malicious server can attack a client as easily as the reverse, so this row covers both directions.
 
 Questions:
 
-- Which user-controlled fields reach an LLM context (prompt-building calls, MCP tool arguments, vision endpoints)?
-- For each, which framework tags wrap it in the prompt template — *including* outer wrappers an attacker-controlled body could close-and-replace, not just the immediate inner wrapper?
-- Does the sanitizer at the callsite escape **every** framework tag wrapping the field, on every call?
+- Which new or changed fields does this feature read off the wire (a packet field, a length prefix, an array count, a string, an id, a flag set)? For each, which side sends it and which side decodes it?
+- For every value that **sizes** something (an array, a `String`, a buffer, a collection, a loop bound), what check runs **before** the allocation or the loop, and against what bound? The array pre-allocation bug (`new Endpoint[length]` sized by a peer's VarInt before any readable check) is the shape: name the guard (`ProtocolUtil#validateArrayLength`, `buffer.isReadable(length)`, a declared maximum) and where it runs.
+- Does every reader agree with its writer on width and limits? The frame-decoder bug was an encoder that could write a length the decoder refused to read back. If this feature adds or changes a reader or writer, name the counterpart and the shared constant or test that keeps them symmetric.
+- Which exception does malformed input raise, and does it reach the pipeline as a `ProtocolException` (no stack trace by default, disconnects) rather than an `IllegalArgumentException`, an `IndexOutOfBoundsException`, or an `Error` that escapes the decoder's `catch (Exception e)`?
+- Are the values validated against the spec's MUST rules on decode, not only on construction (character set and length of a namespaced id, at least one direction bit, trailing bytes after a packet's fields)?
 
-*Strong answer:* "`record.description` reaches the Researcher prompt inside `<record><description>...</description></record>`. Both `description` and `record` are listed in the prompt-injection guard's framework-tag constant (`app/Agent/PromptInjectionGuard.php`), and `sanitize()` escapes all framework tags on every call — not a per-call tag argument. Every agent prompt shares the const, so adding a new framework tag auto-protects every callsite."
+*Strong answer:* "Field read: the `VarInt Array` of endpoint ids in `Supported Endpoints` (client → server, decoded by the server). `SupportedEndpointsPacket#decode` reads the count with `ProtocolUtil#readVarIntArray`, which calls `validateArrayLength` before `new int[length]`, so a count above `readableBytes()` throws `ProtocolException` before allocating. The writer is `ProtocolUtil#writeVarIntArray`, same file; both are covered by the existing round-trip tests. Ids are not range-checked on decode because an unknown id is a routing decision (Row 7), not a framing error. Proof: `SupportedEndpointsPacketTest#decode_arrayLengthExceedsReadable_throws`."
 
-*N/A acceptable when:* feature reaches no LLM / agent / vision endpoint.
+*N/A acceptable when:* the feature reads nothing new off the wire and changes no reader, writer or limit (e.g. a pure API rename in `client-api`).
 
 ---
 
-## Row 2 — External mutation
+## Row 2: Connection lifecycle, timeouts and silent peers
 
 Questions:
 
-- For each external mutation (HTTP, queue, file write, billing call), is there a timeout threaded into construction or per-call? Cite the arch test (e.g. the repo's external-HTTP timeout test) that pins it.
-- Walk all three partial-failure shapes and name the compensating action *or* idempotency mechanism for each:
-  - (a) **local-then-external throws** — local row committed, external never created
-  - (b) **external-then-local rolls back** — external created, local rolled back
-  - (c) **concurrent collision wins-loses** — second caller's local insert hits a unique violation *after* the external resource was created
-- For multi-instance external state (multiple billing subscriptions per customer, multiple webhook subscriptions per app, multipart upload parts), is the cleanup an explicit loop or a single-instance shorthand?
+- Which connection states does this feature add or change (before `Handshake`, awaiting `Available Endpoints`, awaiting an acknowledgement, established, closing)? Walk the happy path, then each failure: peer goes silent, peer half-closes, peer sends packets out of order, peer disconnects mid-flow, the local side closes first.
+- For every state that waits on the peer, what bounds the wait? Name the timeout, its value, which `protocol-v1.md` rule sets it (the 30-second constants), and the mechanism that enforces it (an `IdleStateHandler`, a scheduled task on the channel's event loop). A wait with no timeout is how a slow-loris peer holds a connection forever.
+- When the timeout or a violation fires, which side disconnects, does it send `Disconnect` first, and with which `Type` (`1: Protocol error`, `2: Unsupported version`, `3: Timeout`, `0: Generic`)?
+- What does the local caller (the user of `client-api` or `server-netty`) observe when the connection dies in each state: a callback, a completed future, an exception, or nothing? "Nothing" is a silent failure; name the signal.
+- Is anything scheduled per connection (a keep-alive task, a timeout) cancelled when the channel closes, so a closed connection leaves no task behind?
 
-*Strong answer:* "The billing provider's `cancelNow()` runs outside the DB transaction; idempotent via the provider's `status === 'canceled'` short-circuit on retry. Multi-subscription cleanup: `$tenant->subscriptions()->whereNotNull('provider_id')->where('status', '!=', 'canceled')->each(fn($sub) => $sub->cancelNow())`. Timeout: the billing client is on the allowlist of `tests/Arch/ExternalHttpTimeoutTest.php`. Partial-failure (a) is impossible — the provider is the first call. (b) is idempotent on retry. (c) doesn't apply — tenant id is the key."
+*Strong answer:* "New state: server awaits `Available Endpoints Acknowledged` after each resend. A `ScheduledFuture` on `ctx.executor()` fires after 30 s (protocol-v1.md § Disconnect conditions) and sends `Disconnect(3, "available endpoints not acknowledged")` then closes; the future is cancelled in `channelInactive` and when the matching revision is acknowledged. A stale acknowledgement (older revision) does not cancel it. The registry listener sees `onDisconnect(reason)` in every path. Proof: `ServerConnectionHandlerTest#availableEndpoints_noAcknowledgementWithin30s_disconnectsWithTimeout`."
 
-*N/A acceptable when:* no new external mutation; reusing an already-compliant client without adding new methods or new mutation sites.
+*N/A acceptable when:* the feature adds no state, no wait on the peer, and no new disconnect path.
 
 ---
 
-## Row 3 — Endpoint surface
+## Row 3: Threading and the event loop
 
 Questions:
 
-The row covers every surface a client can hit: REST routes **and** broadcast channels. A WebSocket subscription is an endpoint with a long-lived response.
+- Which thread runs each new piece of code: a Netty event loop, a caller's thread (a public API method), or an executor the feature owns?
+- Does anything that can run on the event loop block: a lock held across I/O, a `sync()`/`await()` on a future, a user-supplied handler doing arbitrary work, a blocking queue? Name where user callbacks (endpoint handlers, listeners) execute and whether a slow handler stalls every other connection on that loop.
+- Which state is shared across threads (the endpoint registry, a connection map, a revision counter), and what makes it safe: confinement to one event loop, a concurrent collection, `volatile`, or a lock? Name it.
+- For public API methods callable from any thread (`send`, `register`, `unregister`, `close`), how does the call hand off to the channel's event loop, and is ordering preserved between two calls from the same thread?
 
-- For each new route, is the authorization gate the **doing-the-work** permission (not `viewAny` for writes, not `update` for deletes, not a coarser permission than the operation justifies)?
-- For each broadcast channel this feature adds or **widens**: who can subscribe (the channel-authorization gate, e.g. `routes/channels.php`), and does that audience match the REST permission for the same data? A client-side filter is rendering, not authorization — a member without read permission on the data must not receive its payloads over the wire. A past channel merge was closed over exactly this, after all the code was written.
-- What is the fan-out cost — egress scales as subscribers × payload. Name the multiplier the change introduces and any server-side interest filter that bounds it.
-- When a channel is renamed, merged, or removed: what is the transition window for already-open tabs? Removing every old registration in one deploy leaves open clients silently stale.
-- Is the rate limit a **named** limiter registration (e.g. `RateLimiter::for()`) with a per-user or per-tenant cap, not the framework default (`throttle:120,1` or equivalent)?
-- For endpoints that consume paid external resources, what's the per-user/per-tenant spend cap?
-- For endpoints that accept redirect-bound `state` parameters (OAuth callbacks, install flows), is the state an **opaque random token** with payload stored server-side? `tenantId|userId|salt`-shaped states leak identifiers through referrer logs, browser history, and proxy logs.
-- For each guard this feature adds or edits (middleware, route binding, ability check, tenant-linkage check), what does it do when the thing it checks is **absent** — no bound route model, a null tenant, a token without a project link? A guard that runs its ability check and skips the linkage check when the binding is missing fails open. Name the branch that throws.
-- For endpoints that find-or-overwrite a row keyed by an externally-controllable identifier (installation_id, customer_id, subdomain, webhook payload id), where's the `if ($existing->tenant_id !== null && $existing->tenant_id !== $current) throw` guard? Unconditional overwrite is a cross-tenant takeover vector.
+*Strong answer:* "Endpoint handlers run on the channel's event loop (D3: no separate executor in 0.1; documented in the `EndpointHandler` Javadoc as 'must not block'). The registry is a `ConcurrentHashMap` because `register` is called from user threads; dispatch reads it on the event loop. `Client#send` from a user thread goes through `channel.writeAndFlush`, which Netty marshals onto the event loop in call order (verify at implementation: `AbstractChannelHandlerContext#write` from a non-loop thread). Proof: `NettyClientTest#send_fromTwoThreads_preservesPerThreadOrder`."
 
-*Strong answer:* "`POST /api/records/{record}/summarise` — auth: `update` on `Record` (`viewAny` would let anyone with read access pay for a summary). Rate limit: named `summarise-record` limiter at 5/min/user. Spend cap: 20 sessions/tenant/day via the Action's precondition. No redirect-bound state — flow is intra-app. Cross-tenant guard N/A — record is scope-bound by route, not externally-supplied."
-
-*N/A acceptable when:* feature exposes no new routes, edits no guard, all routes are intra-tenant reads, no OAuth/install/webhook callback is added, and no broadcast channel is added, widened, renamed, or removed.
+*N/A acceptable when:* the feature adds no code that runs on the event loop, shares no state across threads, and adds no public method callable from another thread.
 
 ---
 
-## Row 4 — Audit-log fidelity
+## Row 4: Resource ownership
 
 Questions:
 
-- **When** is the audit row written — at press-time, outcome-time, or both? (A press where the downstream call throws and leaves no outcome row also leaves no audit trail unless the press itself is logged.)
-- **What** does it snapshot — which fields, captured from where? Snapshots must be taken at action-time, not by re-querying referenced rows at log-time (the user may have been deleted, the field may have changed).
-- **Which outcomes** does it record — does the logger enumerate failure / expiry / terminate / timeout, or hard-code `status: 'success'` regardless of caller?
-- **Write volume** — how many audit rows (and broadcasts) does one call write, and what bounds it? A per-row logging loop inside a transaction scales with the collection it iterates, not with the request. Name the bound, or the bulk-write shape that replaces the loop.
-- **Variant parity** — if a singular Action exists for this operation, does every variant (bulk, scheduled, cascade-induced) share the same audit hook, or carry a documented exception? `DeleteRecordAction` calls the logger; `BulkDeleteRecordsAction` must too.
+- For every `ByteBuf` the feature creates, receives or passes on: who owns it, and who releases it on the success path **and** on every failure path (decode throws, handler throws, write fails, channel already closed)? Name the `release()`, the `try/finally`, or the Netty base class that releases for you (`SimpleChannelInboundHandler`, `MessageToByteEncoder`; verify at implementation which ones do).
+- Where a `ByteBuf` crosses into the public API it becomes a `java.nio.ByteBuffer`: is that a copy, or a view whose backing buffer gets released while the user still holds it?
+- What per-connection memory or state can the peer make grow (queued outbound messages, pending acknowledgements, a buffer accumulating a partial frame, registered handlers), and what bounds each one? `maximumFrameLength` bounds one frame; name the bound for everything else.
+- For every `ChannelFuture` the feature produces (`writeAndFlush`, `close`, `connect`), is there a listener that observes failure? An unobserved failed write is a silent drop.
+- When the connection closes, what is freed: buffers, scheduled tasks, registry entries, user-facing handles?
 
-*Strong answer:* "Press audit: `SummariseRecordAction::execute` writes an audit row immediately on press, snapshotting `user.first_name + last_name + email + role + permission_set_id` into `actor_snapshot` from `$actor`, not re-queried. Outcome audit: `HandleSessionWebhookAction::handleOutcome` writes a second row with `status ∈ {success, failed, max_iterations, terminated, expired}` — the logger signature accepts the outcome enum, no hard-coded success. Variant parity: N/A — summarise is per-record, no bulk variant."
+*Strong answer:* "`EndpointMessagePacket` payloads are copied into a heap `ByteBuffer` (`ByteBuffer.wrap(ByteBufUtil.getBytes(buf))`) before the user handler sees them, so the frame buffer is released in `PacketDecoder`'s existing `finally` regardless of handler behaviour. Outbound: `send` wraps the user's `ByteBuffer` with `Unpooled.wrappedBuffer` (no copy; the user must not mutate it until the returned `CompletableFuture` completes, stated in the Javadoc). Every `writeAndFlush` gets a listener that completes that future exceptionally on failure. Per-connection growth: none new; outbound backpressure stays Netty's default high-water mark (verify at implementation). Proof: `EndpointDispatchTest#dispatch_handlerThrows_releasesFrame` with `ResourceLeakDetector` at `PARANOID`."
 
-*N/A acceptable when:* feature writes no audit-relevant rows (no deletes, no role changes, no AI/PII writes, no tenant mutations).
+*N/A acceptable when:* the feature allocates no buffer, adds no per-connection state, and produces no `ChannelFuture`.
 
 ---
 
-## Row 5 — State-machine walkthrough
+## Row 5: Spec conformance
+
+`protocol/protocol-v1.md` is the contract a from-spec implementer in another language builds against. The implementation and the spec drifting apart is a bug in whichever one is wrong.
 
 Questions:
 
-- Which state machines does this feature introduce (partial unique index with status column, queue retry policy with finite max, multi-stage external mutation, server-side payload-drop guard, broadcast-too-large guard)?
-- For each, walk both the happy path and every failure mode (terminal-state-reached, retry-exhausted, partial-rollback, concurrent-race, payload-too-large, rate-limited-by-server). Where does each failure mode resolve?
-- List every side effect the feature emits outside the primary DB write — broadcasts, cache bumps / hash stamps, un-awaited promises, fire-and-forget dispatches. For each: does it fire **inside** or **after** the transaction? An inside-transaction broadcast publishes state a rollback revokes; `ShouldDispatchAfterCommit` defers and **discards on rollback** — name which behaviour you rely on. A snapshot captured before the transaction goes stale inside it (one past plan's pre-transaction status snapshot suppressed the dependent broadcast under a concurrent move).
-- What happens when the enclosing action **retries**? A retried transaction must not turn a delete into a silent no-op or double-fire a side effect (one past plan added a retry budget and made `$model->delete()` a silent no-op on attempt 2+).
-- When the side effect itself fails, who observes that — the user, an operator log, or nobody? "Nobody" is acceptable only as a written best-effort decision in DECISIONS.md (a documented best-effort visit-write decision once deflected a blocking review finding); an un-awaited promise whose rejection vanishes is not a decision.
-- Does any failure mode produce **silent UX degradation** — a user seeing stale / dropped / capped state with no signal? An operator-only log breadcrumb does not count. If yes, what client-facing surface communicates degradation?
+- Which MUST, MUST NOT, SHOULD and disconnect rules in `protocol-v1.md` does this feature implement or touch? Quote them by section.
+- For each rule: is it enforced on **both** sides that the spec binds (the server-side Disconnect conditions and the Client-side disconnect conditions are separate lists), and where in the code?
+- Does the feature change the wire format or a rule? Then name the exact `protocol-v1.md` edit (section and new text), whether the change is backwards-compatible with a peer on the current spec, and whether it needs a protocol version bump in `Handshake`.
+- Does the plan add a check that the current code cannot reach? Bend's rule (CLAUDE.md § Testing): an unreachable "defensive" check is deleted, not kept. Show the input that reaches it, or drop it.
+- Conversely, does the plan rely on a property the spec leaves open (canonical VarInt encoding, which side sends first after an update) without writing it down?
 
-*Strong answer:* "Sessions: `unique(['record_id', 'in_flight'])` where `in_flight` is nullable, set to `true` on insert and `NULL` on completion — a second run after completion succeeds because the completed row's `in_flight` is NULL. Webhook retries: max 3 with 30s/60s/120s backoff, dead-letter logged to `webhook_failures` + an operator-log warning. Broadcast drops: the payload-size guard over 10KB → drops + emits a `refresh-required` sentinel on a small fallback channel; the page's subscription composable listens and re-fetches. No silent staleness path."
+*Strong answer:* "Implements protocol-v1.md § Endpoint list updates: 'Before sending the updated list, the sender MUST stop sending `Endpoint Message`s on any removed endpoints.' Server side: `EndpointRegistry#unregister` removes the id from the outbound send set before `AvailableEndpointsPacket` is written (same event-loop task). Client side is out of scope (BD-0015). No wire change, no spec edit, no version bump. Proof: `ServerEndpointRegistryTest#unregister_thenSend_rejectsBeforeListIsWritten`."
 
-*N/A acceptable when:* feature adds no state machines (no partial unique indexes, no finite retries, no multi-stage external mutations, no server-side drop guards) **and** emits no side effects outside the primary DB write (no broadcasts, cache bumps, or un-awaited dispatches).
+*N/A acceptable when:* the feature touches no behaviour `protocol-v1.md` describes (e.g. a build or test-only change).
 
 ---
 
-## Row 6 — Convention enforcement level
+## Row 6: Public API surface, module boundaries and enforcement
 
 Questions:
 
-- For each new structural rule this plan introduces ("every new X must do Y", "all classes in Z must inherit from W", "no method on this client may skip the timeout convention", "callers must remember to call `validateRelationsLoaded`"), what enforces it at CI time?
-- Name the level on the Enforcement Escalation Ladder:
-  - **L1** — architecture test (`tests/Arch/*.php` or the repo's equivalent)
-  - **L2** — static-analysis rule (a repo-local rule, or the shared rule package the repo's standing rule for convention enforcement names for cross-repo rules)
-  - **L3** — runtime assertion at construction or first use
-  - **L4** — code review only (acceptable only when explicitly chosen with a stated trade-off)
-- For each new method on an existing convention-bearing class (an external API client, a managed-agents client, an Action base), which conventions of the host class must it inherit, and where does the inheritance get enforced?
+- Which public types and methods does this feature add to `client-api` (or to `server-netty`'s future-public register/unregister/handler surface)? For each: does it expose any Netty type (`ByteBuf`, `Channel`, `ChannelFuture`, `EventLoop`)? CLAUDE.md § API design decisions bans this; payloads cross as `java.nio.ByteBuffer`.
+- Does any module gain a dependency? `client-api` depends on nothing; implementation modules may depend on their api module and `protocol`. Name the `build.gradle.kts` change, or confirm there is none.
+- Does the API keep the two send paths separate: built-in packets written internally, user payloads through the public, registration-checked path?
+- What does a caller get wrong most easily with this API (calling before connect, after close, registering twice, mutating a buffer after `send`), and is that an `IllegalStateException` / `IllegalArgumentException` at the call, or silent misbehaviour?
+- Every new public type in `client-api` (and `protocol`, where it is treated as public) needs Javadoc; name the types.
+- For each new structural rule the plan introduces ("every packet validates on decode", "no handler blocks", "every array reader calls `validateArrayLength`"), what enforces it? Bend has no linter or architecture tests, so the ladder is:
+  - **L1**: compile time (module dependency absent from `build.gradle.kts` so the import cannot compile, a `final` or sealed type, a method signature that cannot accept the wrong thing)
+  - **L2**: a test that fails when the rule is broken (name it)
+  - **L3**: runtime check at construction or first use
+  - **L4**: review only, acceptable only when chosen explicitly with the trade-off stated
 
-*Strong answer:* "New convention introduced: 'every method on `<Vendor>ApiClient` calls `->timeout()` per request.' Enforcement: L1, `tests/Arch/ExternalHttpTimeoutTest.php` extends its allowlist to include the new class. New methods on `<Vendor>AppService`: inherit `final readonly` + `#[Config]` credentials + per-call timeout; inheritance pinned by the existing `ServicesTest.php` arch coverage (already L1). No L4 reliance — the repo's standing rule for convention escalation names the shared static-analysis rule package as the lever if this drifts later."
+*Strong answer:* "Adds `EndpointHandler` (`void handle(ByteBuffer payload)`) and `Client#register(String id, EndpointHandler)` to `client-api`; no Netty type in either signature, enforced at L1 because `client-api/build.gradle.kts` has no Netty dependency, so the import cannot compile. Registering an id twice throws `IllegalStateException`. Javadoc on `EndpointHandler`, `Client#register`, `Client#unregister`. New rule 'handlers must not block': L4, stated in Javadoc, trade-off recorded in D3 (an executor hop costs a copy and an ordering guarantee). Proof: `NettyClientTest#register_sameIdTwice_throws`."
 
-*N/A acceptable when:* feature introduces no new structural rules and no new methods on existing convention-bearing classes.
+*N/A acceptable when:* the feature adds no public type or method, no module dependency, and no new structural rule.
 
 ---
 
-## Row 7 — Client-side state
+## Row 7: Runtime endpoint add and remove
 
-The rows above are written for the backend. This row is the client half: every place a page or
-store replaces state it did not compute itself, and every element the user must reach. Frontend
-files carry a large share of review findings on a typical branch, and none of the other six rows
-asks about them.
+Adding and removing endpoints on a live connection is a core protocol feature, and the future module system (hot-swapping a module jar on a running server) depends on it being correct under traffic.
 
 Questions:
 
-- **In-flight ordering** — which requests can be re-issued before the previous answer lands (a search box, a preview, a page fetch, a filter change)? For each, what discards a response that is no longer the latest? Hand-rolled counters are the shape that keeps coming back; a shared latest-request composable is the seam. A plain `await` then assign is the defect.
-- **Re-entry and self-write** — which watchers, realtime handlers or mount-time primes write into state a user gesture is also writing? Name the mask — a pending-guard, a self-write ref cleared on the next tick — or the buffer that keeps an in-flight change from being reverted. Cite the repo's own convention for this if it has one.
-- **Failure leaves visible state right** — for each `catch`, what does the user see after it runs? A swallowed error is a defect when the visible state the request was going to change is left wrong: the spinner is not cleared, the list stays half-replaced, the previous item is still shown, or a disabled control is never re-enabled. Name the state that is reset on the failure path.
-- **Reachable and named** — for each new interactive element: is it a native control, or a `div` with a role? Does a new dialog, checkbox or icon-only control carry an accessible name? Which component owns the page's `h1`, and does it render on every breakpoint? Name the arch or a11y gate that covers your element, or the reason none does.
+- Can this feature register or unregister an endpoint while connections are open? If so, walk the update cycle in protocol-v1.md § Endpoint list updates for both an add and a remove: when the new list is sent, when new endpoints become usable (not before the acknowledge cycle completes), when removed ones stop being sent and stop being accepted.
+- What happens to an `Endpoint Message` that is **already in flight** when its endpoint is removed: decoded but not yet dispatched, dispatched to a handler that is mid-execution, or queued outbound? Name what the handler, the sender and the peer each see.
+- What happens when two list updates overlap (a second `Available Endpoints` sent before the first is acknowledged)? Which revision wins, and what keeps an old acknowledgement from enabling the new list?
+- Does an incoming message on a removed, unknown or wrong-direction endpoint follow the spec's rule (disconnect, or for the server optionally ignore and resend `Available Endpoints`), and which one does this implementation pick?
+- Is the client's supported set recomputed (available ∩ registered) and resent as a whole snapshot on both triggers (new available list received; new local registration that is available)?
 
-*Strong answer:* "Palette search: the latest-request composable wraps `searchRecords`; a response whose ticket is not current is dropped before `results` is assigned, and clearing the query bumps the ticket so a late response cannot repopulate an empty box. Failure: the catch resets `results` to `[]` and `searchFailed` to `true`, rendering the existing alert row; no spinner survives it. Re-entry: the `keydown` listener registered on mount is removed on unmount. Reachable: the trigger is the design system's icon button with a label; the dialog carries `aria-labelledby` on its heading; the page `h1` stays with the shell component, unchanged. Proof: `CommandPalette.spec.ts` 'should ignore a search response that resolves after the query changed'."
+*Strong answer:* "Unregister on the server: the id is removed from the dispatch table first, so a message decoded after that point is treated as 'unsupported endpoint' and dropped with an `Available Endpoints` resend (spec MAY, D5). A handler already executing finishes; no interruption. Outbound messages queued before the unregister are flushed; none can be queued after it because `send` checks the table on the event loop. Overlapping updates: acknowledgements carry the revision; only the latest revision's acknowledgement enables new ids. Proof: `ServerEndpointRegistryTest#unregister_messageDecodedAfterRemoval_isDroppedAndListResent`."
 
-*N/A acceptable when:* the feature touches no component, no store, and no composable. A backend-only plan writes `N/A — no client change`; a plan whose Approach lists a component file cannot.
+*N/A acceptable when:* the feature cannot change the endpoint set of a live connection and does not touch endpoint routing.
 
 ---
 
-## Proof — every row ends with the test that would catch it
+## Proof: every row ends with the test that would catch it
 
-Each row's prose ends with a **Proof** line: the spec file and case name that fails if the
-row's answer is wrong, or `Proof: N/A — <reason>` when the row itself is N/A. "Covered by the
-existing suite" is THIN; name the case. A mock that replays the answer cannot fail: a unit test
-whose transaction mock invokes the closure once cannot prove retry safety, and a cache-prefix
-test on an in-memory driver cannot prove isolation. A test that exists but cannot fail is the
-largest single theme in review findings, ahead of every defect it was written to catch. The
-Proof line is written at plan time and checked by `surface-reviewer` at PR time against the
-diff, the same way the row prose is.
+Each row's prose ends with a **Proof** line: the test class and method (`ClassNameTest#method_condition_expected`) that fails if the row's answer is wrong, or `Proof: N/A: <reason>` when the row itself is N/A. "Covered by the existing suite" is THIN; name the case. A test that replays the answer cannot fail: a threading claim "proved" on an `EmbeddedChannel` (which runs everything on the calling thread) proves nothing about the event loop, a timeout test that never advances a clock or scheduler cannot see the timeout, and a leak claim checked without `ResourceLeakDetector` reporting cannot see a leak. A test that exists but cannot fail is the largest single theme in review findings, ahead of every defect it was written to catch. The Proof line is written at plan time and checked by `precedent-reviewer` at PR time against the diff, the same way the row prose is.
 
 ---
 
 ## How the planner uses this file (Phase 1.6)
 
-Read each row, write a prose paragraph in PLAN.md's `## Security & Cost Surface` section answering the row's questions for *your* feature, and end it with the Proof line. Mark `N/A — <one-line reason>` if no question on the row applies — but check the N/A clause first; agentic / paid / cross-boundary features rarely qualify.
+Read each row, write a prose paragraph in PLAN.md's `## Security & Cost Surface` section answering the row's questions for *your* feature, and end it with the Proof line. Mark `N/A: <one-line reason>` if no question on the row applies, but check the N/A clause first: anything that reads from the wire or touches a live connection rarely qualifies.
 
 Paraphrasing the questions back instead of answering them is THIN, not OK (Phase 4d rule). The `surface-reviewer` agent flags THIN prose at Phase 5.
 
@@ -158,4 +151,4 @@ Paraphrasing the questions back instead of answering them is THIN, not OK (Phase
 
 Loads this file once at Step 1. For each row, compares the planner's prose against what the Approach section says the implementation will do.
 
-At PR-time, `precedent-reviewer` holds the shipped code against the Surface prose itself. A row that passed at plan-time and fails against the diff is a contradicted claim in that prose; the reviewer weighs it by what the divergence costs, with a contradicted safety or cost claim as the blocker case. No plan-time verdict is persisted for it to read — the prose is the record.
+At PR-time, `precedent-reviewer` holds the shipped code against the Surface prose itself. A row that passed at plan-time and fails against the diff is a contradicted claim in that prose; the reviewer weighs it by what the divergence costs, with a contradicted safety or resource claim as the blocker case. No plan-time verdict is persisted for it to read: the prose is the record.

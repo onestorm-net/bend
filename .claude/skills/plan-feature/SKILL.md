@@ -4,55 +4,54 @@ description: |
   Structured feature planning workflow: interrogate the developer with hard, codebase-informed
   questions until requirements are crystal clear, then produce PLAN.md and DECISIONS.md. Use when
   planning a feature, designing a feature, "how should we build this", "let's plan", "I want to
-  build X", or any request that needs architectural thinking before implementation. If a feature
-  touches multiple layers (frontend + backend + migration), trigger this skill before coding.
+  build X", or any request that needs architectural thinking before implementation. If a change
+  spans more than one module (protocol, client-api, client-netty, server-netty) or changes the
+  wire spec (protocol/protocol-v1.md), trigger this skill before coding.
 ---
 
 # Plan Feature
 
 You are entering interrogation mode. Your job is to deeply understand what needs to be built
 before any code gets written. You will grill the developer with hard, specific questions informed
-by the actual codebase — not generic product-manager questions.
+by the actual codebase, not generic product-manager questions.
 
 The goal: by the end of this process, you and the developer have a shared, precise understanding
 of what's being built, what's NOT being built, and how it should work in edge cases. Then you
-produce the plan yourself — you have the deepest context, having read the code and run the
+produce the plan yourself: you have the deepest context, having read the code and run the
 entire conversation.
 
-This skill is project-agnostic: it never assumes a specific issue tracker, tracker project id, or
-issue-key format. It reads `issue_tracker_skill` / `issue_tracker_project_id` (Phase 0, 1a, 4a)
-`references.hazards` and the Review › Accepted failures section (Phase 1.6), `references.site_docs_sync` (the plan's Site Documentation
-Sync table) and `plan_root` (Phase 4b, 4c) from `.claude/project-context.md` — see this plugin's README for
-how that file and its notation work.
+Bend facts this skill relies on: tracker is Kendo via the local `kendo` MCP server
+(`mcp__kendo__*` tools only, never `mcp__claude_ai_Kendo-*`), `project_id: 1`, issue keys
+`BD-NNNN`, issues written in English. Planning artifacts live in `docs/issues/<branch-name>/`
+(see [`.claude/references/plan-directory.md`](../../references/plan-directory.md)). Gradle is
+always `./gradlew`; Gradle project paths are `:bend-protocol`, `:bend-client-api`,
+`:bend-client-netty`, `:bend-server-netty`.
 
-## Phase 0: Parse arguments
+## Phase 0: Resolve the branch and issue
 
-Read `issue_tracker_skill` from `.claude/project-context.md`. Defaults to `kendo-mcp` — this
-org's in-house tracker — when unset, provided that skill is actually installed in the project;
-`none` opts out of tracker integration entirely (skip straight to Phase 1 with no issue context).
-Any other value names a different tracker skill to use in its place.
+Planning happens on the issue's branch, and the plan folder is named after it.
 
-The developer may pass an issue URL or key as the argument. Resolve it through the tracker skill.
+1. Run `git branch --show-current`. The branch must match `BD-NNNN-<kebab-slug>` (e.g.
+   `BD-0012-server-endpoint-registry`). If it doesn't (you're on `main`, or on a branch with no
+   issue key), stop: *"plan-feature writes into `docs/issues/<branch-name>/`, so it needs an issue
+   branch. Run `/newbranch` (new issue) or `/prepare-issue BD-NNNN` (existing issue) first."*
+2. The issue key is the branch's `BD-NNNN` prefix. If the developer passed an issue URL
+   (`https://onestorm.kendo.dev/projects/1/issues/BD-0012`) or key as the argument and it differs
+   from the branch's key, stop and ask which one is meant.
+3. Read the issue with `mcp__kendo__prepare-issue-context-tool(issue_key: "BD-NNNN")`. It returns
+   the issue (with its real database id) and its epic.
 
-**For the default tracker, `kendo-mcp`:** the argument looks like
-`https://<tenant>.kendo.dev/projects/<project-id>/issues/<issue-key>-0325` or just
-`<issue-key>-0325`.
+**Issue key ≠ issue ID.** `BD-0012` does NOT mean the database id is 12. Never extract the number
+from a key and use it as an id.
 
-**IMPORTANT: Issue key ≠ issue ID.** A key like `<issue-key>-0343` does NOT mean the database ID
-is 343. These are different values. Never extract the number from a key and use it as an ID.
-
-If the repo has a `CONTEXT.md` glossary at its root, read it before grilling — it defines the
+If the repo has a `CONTEXT.md` glossary at its root, read it before grilling: it defines the
 canonical domain terms and the aliases to avoid.
 
-If an argument is provided:
-1. Extract the issue key — for URLs, pull the issue-key segment from the path
-2. Read the issue through the resolved tracker to get the actual issue (including its real
-   database ID). **For `kendo-mcp`:** `kendo://issues/{key}`. A different named tracker skill:
-   follow its own instructions for the equivalent read.
-3. Use this as your starting context for Phase 1 — skip the blind search and go straight
-   to viewing the issue and any related epics
-
 ## Phase 1: Research before asking
+
+Read `CLAUDE.md` at the repo root (and any module `CLAUDE.md`, e.g. `protocol/CLAUDE.md`, if one
+exists). It is where Bend's design decisions and layer rules live, with the reasoning behind
+them. Read `protocol/protocol-v1.md` whenever the feature touches anything on the wire.
 
 If the repo has a root `CONTEXT.md` glossary, it is the vocabulary contract for this whole
 session. If the developer uses a term that conflicts with the glossary, call it out and resolve
@@ -63,240 +62,223 @@ Then do the following:
 
 ### 1a. Check the tracker board
 
-`issue_tracker_skill` is `none`: skip this step entirely — there is no board to check.
-
-Otherwise, use the resolved tracker skill to find existing issues, epics, and sprint context for
-the feature. Check if there's already an epic with issues defined — the scope may already be
-broken down.
-
-**For the default tracker, `kendo-mcp`:**
-- Search for related issues using `mcp__kendo__search-issues-tool` with `project_id: <project-id>`
-  (`issue_tracker_project_id` from `.claude/project-context.md`)
-- Read `kendo://projects/<project-id>/epics` to check for relevant epics
-- If issues exist, read each one via `kendo://issues/{key}` to understand the scope before
-  asking questions the board already answers
-
-A different named tracker skill: follow its own instructions for the equivalent search.
-
-If no issue exists for this feature, note it — you will create one before producing the plan
-(see Phase 4a), unless `issue_tracker_skill` is `none`.
+- Search for related issues with `mcp__kendo__search-issues-tool` (`project_id: 1`).
+- Read `kendo://projects/1/epics` to check for relevant epics. The 0.1 epics are `client-api`,
+  `client-netty`, `server-netty` and `Release hygiene`; the feature almost always belongs to one.
+- Read each related issue via `mcp__kendo__prepare-issue-context-tool` to understand the scope
+  before asking questions the board already answers.
 
 ### 1b. Find the closest existing feature
 
-Before designing anything, find the feature in the codebase that most closely resembles what
-the developer wants to build. Trace it through the full stack — this becomes the blueprint:
+Before designing anything, find the code in the repo that most closely resembles what the
+developer wants to build. Trace it through the full chain; this becomes the blueprint:
 
-- **Backend:** Route → Controller/Handler → Validation → Service/Action → DTO → Model →
-  Resource/Serializer
-- **Frontend:** Route → Page → Components → Store/State → Types
+- **Inbound:** `VarInt28FrameDecoder` → `PacketDecoder` → packet class → pipeline handler →
+  endpoint registry / dispatch → public API (`client-api`)
+- **Outbound:** public API → `PacketEncoder` → `VarInt28LengthEncoder`
+- **Spec:** the matching section of `protocol/protocol-v1.md` (Frame, Flow, the packet's own
+  section, Disconnect conditions)
 
-Use Glob/Grep to find the candidate. For example, if the developer wants to build "time tracking
-on issues", look at how comments or attachments work on issues — they likely follow the same
-relation pattern.
+Use Glob/Grep to find the candidate. For example, if the developer wants a new built-in packet,
+look at how `KeepAlivePacket` is defined, registered in `ProtocolV1`, and tested in
+`protocol/src/test/java/`; if they want a new length-prefixed array field, look at
+`AvailableEndpointsPacket#readEndpointArray` and `ProtocolUtil#validateArrayLength`.
 
 Once you find it, read the key files and note:
-- How the backend logic is structured (single-action pattern? what validation?)
-- How the frontend store is set up
-- How the UI components are organized (page → sidebar → form?)
-- What tests exist and how they're structured
+- How the packet or codec is structured (read/write symmetry, where validation lives)
+- Which exception it throws on bad input and why (`ProtocolException` vs
+  `IllegalArgumentException`)
+- Where the matching spec text lives and what MUST rules it states
+- What tests exist and how they're structured (names, AssertJ style, `ByteBuf` release)
 
-This existing feature becomes the reference implementation in your plan. Every question you
-ask and every decision in the plan should be framed relative to it: "Comments do X — should
-this work the same way, or do we need something different here?"
+This existing code becomes the reference implementation in your plan. Every question you ask
+and every decision in the plan should be framed relative to it: "`KeepAlivePacket` does X:
+should this work the same way, or do we need something different here?"
 
 ### 1c. Audit existing code for reuse
 
-This step is non-negotiable. The codebase already has components, helpers, services, and
-patterns for most common needs. Building something that already exists wastes time and
-creates inconsistency.
+This step is non-negotiable. `protocol` already has helpers for most wire needs, and building
+a second VarInt reader or array reader is how the frame-decoder width bug and the array
+pre-allocation bug happened in the first place.
 
-Check shared/common locations — actually browse them, don't guess from memory:
-- Frontend shared modules (`shared/`, `lib/`, `common/`, etc.) — components, services,
-  composables, form system, helpers
-- Domain-specific helpers in the relevant domain and adjacent ones
-- Backend shared modules — actions, services, helpers, base classes
+Browse, don't guess from memory:
+- `protocol/src/main/java/net/onestorm/bend/protocol/util/ProtocolUtil.java`: VarInt, string and
+  array read/write, `validateArrayLength`
+- `protocol/src/main/java/net/onestorm/bend/protocol/codec/`: framing and packet codecs
+- `protocol/src/main/java/net/onestorm/bend/protocol/endpoint/Endpoint.java`: endpoint id and
+  flag validation
+- `protocol/src/main/java/net/onestorm/bend/protocol/exception/ProtocolException.java`
+- Whatever `client-api`, `client-netty` and `server-netty` contain by now
 
-Also find the closest existing page to the one you'd be building and note its layout pattern.
-The new feature should look like it belongs in the app, not like a different product.
-
-If the project provides a design-system skill (e.g. `/<project>-design-system`), use it for
-any UI/design questions.
-
-Make a concrete list of what you found. This list goes into Phase 2 questioning — present it
+Make a concrete list of what you found. This list goes into Phase 2 questioning: present it
 to the developer and confirm: "I found these existing pieces we can reuse. Anything I'm
 missing, or should any of these be replaced instead of reused?"
 
-### 1d. Sketch module shape (deep vs shallow) — apply the test, don't grade yourself
+### 1d. Sketch module shape (deep vs shallow): apply the test, don't grade yourself
 
-Before validating layers, decide what new modules this feature introduces and whether each is deep or shallow. Load [`references/module-shape-lens.md`](references/module-shape-lens.md) — read the **shallow-detection test** section in particular. The lens is three specific tests about interface complexity vs implementation per use case, not a vibe check. Implementation line count is not one of them: a Service with 200 lines of HTTP+SSE inside, one method, and 5 primitive params is shallow regardless of body length.
+Before validating layers, decide what new classes this feature introduces and whether each is deep or shallow. Load [`references/module-shape-lens.md`](references/module-shape-lens.md) and read the **shallow-detection test** section in particular. The lens is three specific tests about interface complexity vs implementation per use case, not a vibe check. Implementation line count is not one of them: a handler with 200 lines of state-machine code inside, one method, and 5 primitive params is shallow regardless of body length.
 
-For each in-scope module, output one row to PLAN.md's "Key Design Decisions" table (or a dedicated Module-Shape sub-table) with these columns:
+For each in-scope class, output one row to PLAN.md's "Key Design Decisions" table (or a dedicated Module-Shape sub-table) with these columns:
 
 - **Inputs/outputs**
 - **Hidden behaviour**
 - **Test seam**
-- **Shallow-test reckoning** — explicitly answer: "if a plausible second use case lands, do I add a *method* or a *parameter*?" Method ⇒ shallow-and-suspect. Parameter ⇒ likely deep.
-- **Verdict** — deep / shallow-but-justified / shallow-and-suspect
+- **Shallow-test reckoning**: explicitly answer: "if a plausible second use case lands, do I add a *method* or a *parameter*?" Method ⇒ shallow-and-suspect. Parameter ⇒ likely deep.
+- **Verdict**: deep / shallow-but-justified / shallow-and-suspect
 
 The Shallow-test reckoning column is not optional. A row that says "Deep" without showing the reckoning is treated as missing for Phase 1.5 gap-analysis purposes.
 
-Fold or expand any shallow-and-suspect module before continuing. The two fixes (demote into the caller, or promote to protocol primitives) are documented in the lens reference. Plan-time is the last cheap moment to fix this: no pre-PR reviewer grades module depth on its own, and a shallow module only surfaces later as the sibling drift and dead scaffolding `precedent-reviewer` flags — by which point the shape is already built.
+Fold or expand any shallow-and-suspect class before continuing. The two fixes (demote into the caller, or promote to protocol primitives) are documented in the lens reference. Plan-time is the last cheap moment to fix this: no pre-PR reviewer grades module depth on its own, and a shallow class only surfaces later as the sibling drift and dead scaffolding `precedent-reviewer` flags, by which point the shape is already built.
 
-### 1e. Validate against architecture rules
+### 1e. Validate against the layer rules
 
-**Before proposing where classes live, check the architecture rules that enforce layer boundaries.**
-Placing a class in the wrong layer will cause CI failures that force restructuring later. Read the
-rule files as the source of truth — don't rely on summaries, they age.
+**Before proposing where classes live, check the layer rules.** Bend has no architecture tests;
+the rules live in `CLAUDE.md` (Module naming convention, Module set, API design decisions,
+Protocol architecture), which is the source of truth. Read it, don't rely on this summary:
 
-Look for the project's architecture-rule definitions:
-- Layer-dependency rules (e.g., Deptrac config, ArchUnit, custom rule files)
-- Architecture tests (e.g., a `tests/Arch/` directory with naming/structure assertions)
-- Frontend domain-boundary tests (e.g. `tests/arch/domain-structure.spec.ts`)
+- `client-api` (and the future `server-api`) exposes no Netty types: no `ByteBuf`, no
+  `Channel`, no `ChannelFuture`. Use `java.nio.ByteBuffer` at the boundary and convert inside
+  the `-netty` module.
+- `client-api` depends on nothing. Implementation modules (`client-netty`, `server-netty`) may
+  depend on their api module and on `protocol`. Check the module's `build.gradle.kts`
+  dependencies block before proposing an import across modules.
+- The built-in packet path (Handshake, Disconnect, Available/Supported Endpoints and their
+  acknowledgements, Keep Alive) and the endpoint-message path stay separate: built-ins are
+  written to the channel directly, never through the public send path.
+- `ProtocolException` for malformed or oversized wire input; `IllegalArgumentException` /
+  `IllegalStateException` for caller misuse at setup time.
+- `server-netty`'s register/unregister/handler signatures stay Netty-agnostic, as if they were
+  already in `server-api`.
+- A `Client` is built by the implementation's own builder (e.g. `NettyClient.builder()...connect()`),
+  whose `connect()` returns the `client-api` `Client` interface; the concrete class stays
+  package-private. `client-api` itself has no `connect()` and no settings.
 
-For every new class in the plan, verify: "Does this class's proposed layer allow it to depend
-on everything it needs?" If not, move it to a layer that does — even if it feels semantically
-off. The architecture tests are authoritative.
+For every new class in the plan, verify: "Does this class's module allow it to depend on
+everything it needs?" If not, move it, even if it feels semantically off.
 
-Common patterns to verify against arch tests (adapt to the project's stack):
-- Action classes — naming suffix, single-method shape, no facades, transaction wrapping
-- Controllers — naming suffix, no inline authorization
-- Form Requests — naming suffix, `toDto()` method
-- Resources/serializers — eager-load completeness
-- Migrations — destructive-op rules
-
-Include findings in the plan: "Proposed class X in layer Y — verified architecture rules allow
-Y to depend on [list of needed layers]."
+Include findings in the plan: "Proposed class X in module Y: verified `Y/build.gradle.kts` and the
+CLAUDE.md layer rules allow Y to depend on [list]."
 
 ## Phase 1.4: Pre-flight verification (mandatory, fail-closed)
 
-Every path and symbol the plan cites gets resolved mechanically before it lands. Projecting what *should* exist instead of grepping once cost a plan three reviewer rounds — [`references/anti-patterns.md`](references/anti-patterns.md) § Calibration records the four categories it produced.
+Every path and symbol the plan cites gets resolved mechanically before it lands. Projecting what *should* exist instead of grepping once cost a plan three reviewer rounds: [`references/anti-patterns.md`](references/anti-patterns.md) § Calibration records the four categories it produced.
 
-Resolve `<skill dir>`, used here and again by Phase 5's reviewer agents, in this order — checked-in
-copy, then this plugin's install, then a user-level install — and keep the first match:
+`<skill dir>`, used here and again by Phase 5's reviewer agents, is the checked-in copy:
 
 ```bash
-skill_dir=
-[ -d .claude/skills/plan-feature ] && skill_dir=$(cd .claude/skills/plan-feature && pwd)
-if [ -z "$skill_dir" ]; then
-  # Highest cached version wins: sort -V, not the glob's lexical order (0.3.0 > 0.22.0).
-  skill_dir=$(for d in "$HOME"/.claude/plugins/cache/*/core-skills/*/skills/plan-feature; do
-    [ -d "$d" ] && printf '%s\n' "$d"
-  done | sort -V | tail -n 1)
-fi
-[ -z "$skill_dir" ] && [ -d "$HOME/.claude/skills/plan-feature" ] && skill_dir="$HOME/.claude/skills/plan-feature"
-echo "skill_dir=$skill_dir"
+skill_dir="$(git rev-parse --show-toplevel)/.claude/skills/plan-feature"
 ```
-
-No match on any of the three — stop: *"plan-feature can't find its own bundled scripts or
-reference files; reinstall the skill or plugin."*
 
 Collect every path and symbol you're about to cite, one per line, and run them through the resolver:
 
 ```bash
-printf '%s\n' 'app/Helpers/Slug.php' 'CreateWidgetAction' \
-  | bash <skill dir>/scripts/verify-citations.sh
+printf '%s\n' 'protocol/src/main/java/net/onestorm/bend/protocol/codec/VarInt28FrameDecoder.java' \
+    'ProtocolUtil#validateArrayLength' 'net.onestorm.bend.protocol.endpoint' \
+  | bash "$skill_dir/scripts/verify-citations.sh"
 ```
 
-It resolves paths against the repo root plus `backend/` and `frontend/`, greps bare symbols and namespaces across the source trees, and tolerates a trailing line reference (`api.php:233-234`). It reports on every citation before exiting — one pass gives you the whole list, not the first failure. Repos with a different layout set `CITATION_PATH_PREFIXES` / `CITATION_SEARCH_ROOTS` (documented in the script header). **A `MISSING` line is a fabricated citation — fix it or drop the claim. You may not proceed past Phase 1.4 with a non-zero exit.**
+It resolves paths against the repo root and each module's `src/main/java/` and `src/test/java/`, resolves `Class#member` / `Class.member` by finding `Class.java` and checking the member is named in it, resolves qualified names as package directories or class files, greps bare symbols across the module source trees, `gradle/` and the root build scripts, and tolerates a trailing line reference (`VarInt28FrameDecoder.java:40-52`). It never searches `build/`, `.gradle/`, `.idea/`, `.claude/`, `docs/` or Markdown files for symbols. It reports on every citation before exiting, so one pass gives you the whole list. `CITATION_PATH_PREFIXES` / `CITATION_SEARCH_ROOTS` override the defaults (documented in the script header). **A `MISSING` line is a fabricated citation: fix it or drop the claim. You may not proceed past Phase 1.4 with a non-zero exit.**
+
+Its own tests run with `bash "$skill_dir/scripts/verify-citations.test.sh"`; run them after editing the script.
 
 Three claim shapes the script can't resolve, which you still owe by hand:
 
 | Check | What | How |
 |---|---|---|
-| **Framework / library behaviour** | Every claim of the form "the framework does X" / "the ORM does Y" / "the SDK does W" | Cite `vendor/<package>/<file>:<line>` (or the `node_modules/` equivalent) that proves it (then run that path through the script), or weaken the claim to "verify at implementation time." No vibes on framework behaviour. |
-| **Symbol-removal blast radius** | Every symbol you plan to delete or rename (Action, Event, route, FE function, type) | `grep -rn <symbol>` across every source tree and **inspect every hit**, not just the ones from the obvious feature path. The third callsite always lives somewhere unexpected (the calibration plan missed a bulk-assign caller of the endpoint it was deleting until round 2). |
-| **Added-rule sweep inventory** | Every cross-cutting rule the plan **adds** — a header every response must stamp, a broadcast every status transition must fire, an audit hook every variant must call, a pattern every sibling component must adopt | `grep -rn` the sibling population (the route group, the write paths, the component family) and carry **every hit** into PLAN.md's `## Sweep Inventory`, each marked Applied or `Skipped — <reason>`. The blast-radius row covers what you remove; this row covers what you add. Review keeps finding site N+1 of an N-site sweep: one plan wired every write path but one, another broadcast every done-transition but one. |
+| **Framework / library behaviour** | Every claim of the form "Netty does X" (`ByteToMessageDecoder` never calls `decode()` with an empty buffer, a handler's `channelInactive` fires after `exceptionCaught`, `writeAndFlush` releases the message on failure) | Cite the Netty 4.x class and method, ideally as a GitHub URL at the release tag `gradle/libs.versions.toml` pins (`https://github.com/netty/netty/blob/netty-<version>/<path>#L<line>`), or weaken the claim to "verify at implementation time." The resolver reports Netty classes as MISSING on purpose: they aren't in this repo. No vibes on framework behaviour. |
+| **Symbol-removal blast radius** | Every symbol you plan to delete or rename (packet class, codec, `ProtocolUtil` method, public API type, spec term) | `grep -rn <symbol>` across every module's `src/`, `protocol/protocol-v1.md` and `CLAUDE.md`, and **inspect every hit**, not just the ones from the obvious feature path. The third callsite always lives somewhere unexpected (often a test helper, or the spec text). |
+| **Added-rule sweep inventory** | Every cross-cutting rule the plan **adds**: a length check every array reader must run, a disconnect every timeout path must send, a validation every packet decoder must call, a release every handler that consumes a `ByteBuf` must do | `grep -rn` the sibling population (every packet class, every reader in `ProtocolUtil`, every handler) and carry **every hit** into PLAN.md's `## Sweep Inventory`, each marked Applied or `Skipped: <reason>`. The blast-radius row covers what you remove; this row covers what you add. The array pre-allocation bug is the shape: `readString` had the guard, the two array readers didn't. |
 
 Reviewers catch unverified confident claims; they will NOT reliably catch hedged ones. So anything you couldn't verify gets written as "verify at implementation time", not asserted.
 
 ## Phase 1.5: Gap analysis (mandatory, fail-closed)
 
-Before any drafting, produce this literal checklist and mark each row **✓ Covered**, **? Partial**, or **✗ Missing**. Every ✓ requires a quoted source. **No ? or ✗ row may survive into drafting** — Phase 2 exists to close them, so an open row sends you there rather than blocking you. Phase 3 is what's unreachable while any row is still ? or ✗.
+Before any drafting, produce this literal checklist and mark each row **✓ Covered**, **? Partial**, or **✗ Missing**. Every ✓ requires a quoted source. **No ? or ✗ row may survive into drafting**: Phase 2 exists to close them, so an open row sends you there rather than blocking you. Phase 3 is what's unreachable while any row is still ? or ✗.
 
 Load [`references/quality-gates.md`](references/quality-gates.md) for the rationale, sycophancy guards, and proceed/return rules.
 
 | Required for a plan | Marker | Source (must quote / cite) |
 |---|---|---|
-| **Goal** — one sentence the developer would re-read and agree with | ✓ / ? / ✗ | issue body / first prompt — quote the line |
-| **Acceptance criteria** — testable, observable, distinct from the goal (≥ 3) | ✓ / ? / ✗ | issue body — quote each, or mark missing |
-| **In-scope** — explicit file list or domain boundary | ✓ / ? / ✗ | issue body / prompt / Phase 1b research |
-| **Out-of-scope** — at least one explicit non-goal | ✓ / ? / ✗ | usually missing — interrogate |
-| **Edge cases** — empty states, auth, errors, race conditions, scale | ✓ / ? / ✗ | usually missing — interrogate with concrete cases drawn from Phase 1b |
-| **Architecture fit** — which existing feature does this resemble; what gets reused | ✓ / ? / ✗ | Phase 1b/1c findings — cite file paths |
-| **Module shape** — every new in-scope module has the **shallow-test reckoning** filled in (not just a "Deep" label); any shallow-and-suspect module has been demoted or promoted | ✓ / ? / ✗ | Phase 1d output — a row that says "Deep" without showing the "method or parameter for the next use case?" reckoning counts as ✗, not ✓ |
-| **Risk / uncertainty** — what could go wrong, what's unknown | ✓ / ? / ✗ | usually missing — interrogate |
+| **Goal**: one sentence the developer would re-read and agree with | ✓ / ? / ✗ | issue body / first prompt (quote the line) |
+| **Acceptance criteria**: testable, observable, distinct from the goal (≥ 3) | ✓ / ? / ✗ | issue body (quote each, or mark missing) |
+| **In-scope**: explicit file list or module boundary | ✓ / ? / ✗ | issue body / prompt / Phase 1b research |
+| **Out-of-scope**: at least one explicit non-goal | ✓ / ? / ✗ | usually missing; interrogate (CLAUDE.md's "Deferred to 0.2+" list is a common source) |
+| **Edge cases**: malformed or hostile input, timeouts, disconnect mid-flow, concurrent register/unregister, limits | ✓ / ? / ✗ | usually missing; interrogate with concrete cases drawn from Phase 1b |
+| **Architecture fit**: which existing code does this resemble; what gets reused | ✓ / ? / ✗ | Phase 1b/1c findings (cite file paths) |
+| **Module shape**: every new in-scope class has the **shallow-test reckoning** filled in (not just a "Deep" label); any shallow-and-suspect class has been demoted or promoted | ✓ / ? / ✗ | Phase 1d output; a row that says "Deep" without showing the "method or parameter for the next use case?" reckoning counts as ✗, not ✓ |
+| **Risk / uncertainty**: what could go wrong, what's unknown | ✓ / ? / ✗ | usually missing; interrogate |
 
 Output the table verbatim to the developer with marks and citations filled in. It stays in the planning conversation: it is a gate on the planner, and the sections it proves complete (Goal, Acceptance Criteria, Scope, Edge Cases, Reuse and patterns) are what PLAN.md carries. A cold implementing session needs those sections, not the proof they were gathered.
 
-**Phase 1.6 comes next either way — it is never skipped.** After it:
+**Phase 1.6 comes next either way; it is never skipped.** After it:
 
-- **All ✓** — skip the Phase 2 interrogation and go to Phase 3. The input is genuinely complete.
-- **Any ? or ✗** — go to Phase 2, targeting only those rows. Don't sweep.
+- **All ✓**: skip the Phase 2 interrogation and go to Phase 3. The input is genuinely complete.
+- **Any ? or ✗**: go to Phase 2, targeting only those rows. Don't sweep.
 
 ## Phase 1.6: Security & Cost Surface (mandatory, fail-closed)
 
-Produce a `## Security & Cost Surface` section in PLAN.md with **seven prose paragraphs**, each answering the questions for one row and ending with its Proof line — or `N/A — <one-line reason>` when no question on the row applies. **You may not proceed past Phase 1.6 with any unanswered question on a populated row.**
+Produce a `## Security & Cost Surface` section in PLAN.md with **seven prose paragraphs**, each answering the questions for one row and ending with its Proof line, or `N/A: <one-line reason>` when no question on the row applies. **You may not proceed past Phase 1.6 with any unanswered question on a populated row.**
 
-The canonical questions and worked examples live at [`references/surface-questions.md`](references/surface-questions.md) — load it now. It is the single source of truth shared with the `surface-reviewer` agent at Phase 5. The rows are deliberately question-shaped, not field-shaped, so they generalise to feature shapes not seen yet. When `.claude/project-context.md` sets `references.hazards`, read that file too: it lists the defect shapes that reached review in this repo after a plan, each with the seam or gate that ends it and the row that asks about it. A row whose shape is listed there needs an answer that names that seam, not a generic one. When the same file has a `## Review › ### Accepted failures` section, read it as well: a failure whose only producer it lists as not defended needs no guard in the plan, and the row's answer says so by naming the class; a class it lists as still guarded is answered with the guard it names.
+The canonical questions and worked examples live at [`references/surface-questions.md`](references/surface-questions.md); load it now. It is the single source of truth shared with the `surface-reviewer` agent at Phase 5. The rows are deliberately question-shaped, not field-shaped, so they generalise to feature shapes not seen yet. The hazard classes they ask about come from Bend's own history, recorded in `CLAUDE.md` (the frame-decoder width asymmetry, the array pre-allocation bug, the built-in packets sent through the public send path, the unreachable "defensive" checks): a row whose hazard the feature repeats needs an answer that names the seam that ends it, not a generic one.
 
-Architecture tests do not cover this. They cover *code shape* — not the flow of untrusted bytes, billing dollars, audit fidelity, partial-failure state space, silent UX degradation, or enforcement of conventions the feature introduces. [`references/quality-gates.md`](references/quality-gates.md) carries the rationale and the sycophancy guards (paraphrasing the questions back is THIN, not OK; an LLM-touching feature cannot mark Row 1 N/A).
+Unit tests of individual packets do not cover this. They cover *code shape*, not the flow of untrusted bytes into an allocation, what a silent peer does to a connection, which thread a handler runs on, or who releases a buffer. [`references/quality-gates.md`](references/quality-gates.md) carries the rationale and the sycophancy guards (paraphrasing the questions back is THIN, not OK; a feature that reads anything off the wire cannot mark Row 1 N/A).
 
-Output the seven paragraphs to the developer for confirmation, then carry them into PLAN.md at Phase 4c. The `surface-reviewer` agent grades them at Phase 5, and `precedent-reviewer` holds them against the diff at PR time — this is the one part of PLAN.md with a reader after the branch is built.
+Output the seven paragraphs to the developer for confirmation, then carry them into PLAN.md at Phase 4c. The `surface-reviewer` agent grades them at Phase 5, and `precedent-reviewer` holds them against the diff at PR time: this is the one part of PLAN.md with a reader after the branch is built.
 
 ## Phase 2: Interrogate
 
 Now ask questions, **targeting only the ? and ✗ rows from Phase 1.5**. No generic sweep.
 
-The mode is **interview with hypotheses**: for every question, propose your recommended answer with one-line rationale, and let the developer confirm or correct. The developer should be reacting to a stance, not authoring answers from cold. A multiple-choice quiz with no opinion attached makes the dev think from zero — that's a worse interview, not a politer one.
+The mode is **interview with hypotheses**: for every question, propose your recommended answer with one-line rationale, and let the developer confirm or correct. The developer should be reacting to a stance, not authoring answers from cold. A multiple-choice quiz with no opinion attached makes the dev think from zero; that's a worse interview, not a politer one.
 
 ### Order of attack
 
-Resolve in dependency order, not gap-table order. A late-discovered data-model change invalidates UI decisions made earlier — that's the most expensive form of mid-interview rework.
+Resolve in dependency order, not gap-table order. A late-discovered wire-format change invalidates state-machine and API decisions made earlier; that's the most expensive form of mid-interview rework.
 
-1. **Data model & boundaries** — what entities exist, what owns what, where data lives
-2. **Behaviour & permissions** — what happens when, who can do what, what's transactional
-3. **UI shape** — page vs panel vs modal, layout pattern to mirror
-4. **Edge cases & error paths** — empty states, race conditions, scale, failure modes
+1. **Wire format & spec**: which packets and fields exist, their encoding, size limits, which MUST and disconnect rules in `protocol-v1.md` change
+2. **State machine & threading**: connection states and transitions, timeouts, what runs on the event loop and what doesn't, ordering against in-flight endpoint messages
+3. **Public API**: what `client-api` (or `server-netty`'s future-public surface) exposes, its types, and what stays internal
+4. **Failure modes**: malformed input, silent or half-open peers, disconnect mid-flow, register/unregister races, resource exhaustion
 
-Don't ask a UI question before the data model is settled. If a row in the gap table is downstream of an unanswered upstream row, defer it.
+Don't ask an API question before the wire format is settled. If a row in the gap table is downstream of an unanswered upstream row, defer it.
 
 ### Self-serve before asking
 
-Before sending an `AskUserQuestion`: can the codebase answer this? If yes, **answer it from the code and ask for confirmation**, not for the answer. "I see the board uses WebSockets via `useRealtimeChannel.ts:42` — confirming we wire this feature the same way?" is one click. "Should this be real-time?" wastes the dev's attention on something we already know.
+Before sending an `AskUserQuestion`: can the codebase answer this? If yes, **answer it from the code and ask for confirmation**, not for the answer. "`ProtocolUtil#readString` checks `buffer.isReadable(length)` before reading: confirming the new reader uses `validateArrayLength` the same way?" is one click. "Should we validate the length?" wastes the dev's attention on something we already know.
 
-If the dev makes a claim about how the code behaves and you suspect it's wrong, **check the code before continuing**. Surfacing a contradiction ("you said X, but `app/Actions/Widgets/CloseWidgetAction.php:88` does Y — which is right?") is more valuable than tactfully agreeing.
+If the dev makes a claim about how the code behaves and you suspect it's wrong, **check the code before continuing**. Surfacing a contradiction ("you said the decoder accepts 5-byte lengths, but `VarInt28FrameDecoder` caps at 4 bytes / 28 bits: which is right?") is more valuable than tactfully agreeing. The same goes for the spec: if the dev's description contradicts a MUST in `protocol-v1.md`, say so.
 
 ### First round: present what you found
 
 Your first question round should always present what you discovered in Phase 1. Before asking
 about scope or behavior, show the developer:
 
-1. **The reference feature** you found — "I looked at how [comments/attachments/reports] work.
+1. **The reference code** you found: "I looked at how [`KeepAlivePacket` / `AvailableEndpointsPacket` / the frame decoder] works.
    It follows [pattern]. I'd like to use that as the blueprint. Sound right?"
-2. **Shared code you plan to reuse** — "I found these existing pieces: [list]. Anything missing
+2. **Shared code you plan to reuse**: "I found these existing pieces: [list]. Anything missing
    or anything you'd rather rebuild?"
-3. **The UI pattern you'd mirror** — "The closest existing page is [settings/project detail/
-   issue list]. I'd follow that layout. Does that match what you have in mind?"
+3. **The spec sections involved**: "This touches `protocol-v1.md` § [Flow / Disconnect conditions /
+   the packet's section]. I'd change [these lines] / leave the spec unchanged. Does that match?"
 
 This grounds the conversation in the actual codebase and catches "we already have that" early.
 
 ### Rules for questioning
 
-- **Every round goes through `AskUserQuestion`** — up to 4 questions per call, each with 2–4 concrete options drawn from the codebase. The developer clicks; they don't parse paragraphs or type prose. Use previews for UX choices (modal vs page, inline vs form).
-- **Lead with a stance.** Each question's description carries "I'd pick X because Y" — the dev reacts to a recommendation, not a blank quiz.
-- **Push back on vague answers.** "It should be flexible" or "whatever makes sense" is not an answer — ask for the concrete case behind it.
-- **Probe relationships with a specific story**, not an abstract category: "User A has record X open with two unsaved child rows; User B archives X while A is still editing — what happens to A's save?" surfaces boundary disagreements that "what about race conditions?" doesn't.
+- **Every round goes through `AskUserQuestion`**: up to 4 questions per call, each with 2–4 concrete options drawn from the codebase. The developer clicks; they don't parse paragraphs or type prose. Use previews for API-shape choices (method signatures, builder vs constructor).
+- **Lead with a stance.** Each question's description carries "I'd pick X because Y": the dev reacts to a recommendation, not a blank quiz.
+- **Push back on vague answers.** "It should be flexible" or "whatever makes sense" is not an answer; ask for the concrete case behind it.
+- **Probe relationships with a specific story**, not an abstract category: "The server unregisters `bend:chat` while a client's `Endpoint Message` on it is already decoded and queued for the handler. What does that handler see, and what does the client see?" surfaces boundary disagreements that "what about race conditions?" doesn't.
 - **Live glossary check.** If the repo has a root `CONTEXT.md`, an answer using a term that conflicts with it stops the round: surface the conflict, propose the canonical term, update `CONTEXT.md` inline. Don't let domain language drift mid-conversation.
-- **Restate after every round** in 2-3 lines — "Agreed so far: A → X, B → Y. Open: Z." In-flight alignment means Phase 3 is a final sanity check rather than the only moment the developer can object.
+- **Restate after every round** in 2-3 lines: "Agreed so far: A → X, B → Y. Open: Z." In-flight alignment means Phase 3 is a final sanity check rather than the only moment the developer can object.
 - **Keep text between rounds under 5 lines.** Summaries and context, not essays.
 
 ### When to stop asking
 
-Stop when ALL of the following are true — however many rounds that takes:
-- You know exactly what the user will see and interact with
-- You know what data is involved and where it lives
+Stop when ALL of the following are true, however many rounds that takes:
+- You know exactly what goes on the wire and what the spec says about it
+- You know what a caller of the public API sees and calls
 - You know the scope boundaries (in AND out)
-- You know how edge cases are handled
+- You know how each failure mode is handled (and which side disconnects with which `Disconnect` type)
 - You've identified which existing patterns to follow
 - You can write at least 3 verifiable acceptance criteria that the developer agrees with
 
@@ -321,7 +303,7 @@ Here's my understanding:
 - [how each is handled]
 
 **Patterns to follow:**
-- [specific files/components to mirror]
+- [specific files/classes to mirror]
 
 **Acceptance criteria:**
 - [ ] [verifiable pass/fail condition with how to check it]
@@ -337,67 +319,57 @@ confirm again.
 
 Once the developer confirms, do the following:
 
-### 4a. Ensure an issue exists
+### 4a. Sync the issue
 
-`issue_tracker_skill` is `none`: skip this step — there is no issue to create or link. The plan's
-directory (4b/4c) still gets a slug, derived from the feature name alone.
-
-Otherwise, if no issue was found in Phase 1a, create one:
-
-1. If the resolved tracker skill ships its own issue-writing template, follow it — don't
-   improvise a structure. **For `kendo-mcp`:** it does, at `references/issue-templates.md` (the
-   Feature and Bug formats used across this project) — write the description **against** the
-   matching template (Feature: User Story / Context / Acceptance Criteria / Scope / Testing —
-   Bug: Problem / Cause-or-repro / Acceptance Criteria / Scope / Testing). No such template
-   shipped: use a generic User Story / Context / Acceptance Criteria / Scope / Testing shape.
-2. **For `kendo-mcp`:** create via `mcp__kendo__create-issue-tool` with `project_id: <project-id>`
-   (`issue_tracker_project_id` from `.claude/project-context.md`). A different named tracker
-   skill: follow its own instructions for the equivalent create.
-3. Note the returned issue key (e.g., `KD-0244`)
-
-If an issue already exists, use its key.
+The issue exists (Phase 0 required its branch). If the agreed scope or acceptance criteria are
+sharper than the issue body, update its description with `mcp__kendo__update-issue-tool`,
+written **against** the Feature template in
+[`.claude/skills/kendo/references/issue-templates.md`](../kendo/references/issue-templates.md)
+(User Story / Context / Acceptance Criteria / Scope / Testing). Don't improvise a structure.
+Leave the issue alone when it already matches.
 
 ### 4b. Write DECISIONS.md
 
-Write decisions to `<plan-root>/<slug>/DECISIONS.md` (`plan_root`, default `docs/plans`) **as
-they are made** during planning, not after — rejected proposals and their reasoning are valuable context. `<slug>` is the issue key
-plus a short description (e.g. `KD-0244-time-tracking`) when Phase 4a resolved one, or just the
-short description when `issue_tracker_skill` is `none` — the same slug shape
-`plugins/core-skills/references/plan-directory.md` expects a resolving skill to find later.
+The plan folder is `docs/issues/<branch-name>/`, the exact current branch name from Phase 0 (e.g.
+`docs/issues/BD-0012-server-endpoint-registry/`). Don't mint a different slug: every reader finds
+the folder through [`.claude/references/plan-directory.md`](../../references/plan-directory.md),
+which looks for the branch name.
+
+Write decisions to `docs/issues/<branch-name>/DECISIONS.md` **as they are made** during planning,
+not after; rejected proposals and their reasoning are valuable context.
 
 Use the format and rules in [`references/decisions-template.md`](references/decisions-template.md).
 
 ### 4c. Write PLAN.md
 
-Save the plan to `<plan-root>/<slug>/PLAN.md` using the structure in
-[`references/plan-template.md`](references/plan-template.md). The template is the contract —
-downstream agents (`plan-reviewer`, `surface-reviewer`, `/wireframe`, `/core-skills:task-writer`,
+Save the plan to `docs/issues/<branch-name>/PLAN.md` using the structure in
+[`references/plan-template.md`](references/plan-template.md). The template is the contract:
+downstream agents and skills (`plan-reviewer`, `surface-reviewer`, `/task-writer`, `/next`,
 `precedent-reviewer`) parse the section names, so don't rename or omit them.
 
 ### 4d. Template completeness check (mandatory, fail-closed)
 
-Before spawning the reviewers, verify every section of the saved PLAN.md is substantive. Mark each row **OK** if the bullet rule is met **or** if the section explicitly declares `N/A — <one-line reason>`. Otherwise **THIN** — re-work before continuing.
+Before spawning the reviewers, verify every section of the saved PLAN.md is substantive. Mark each row **OK** if the bullet rule is met **or** if the section explicitly declares `N/A: <one-line reason>`. Otherwise **THIN**; re-work before continuing.
 
 Load [`references/quality-gates.md`](references/quality-gates.md) for the rationale, the N/A carve-out, and sycophancy guards.
 
 | Section | OK requires |
 |---|---|
-| Goal | one sentence; describes user-visible outcome, not implementation |
-| Key Design Decisions | ≥ 1 row per non-trivial new module; every choice cites a concrete codebase reference |
-| Scope — In | explicit list, not "the feature" |
-| Scope — Out | ≥ 1 explicit non-goal |
+| Goal | one sentence; describes the outcome for a user of Bend (a client or server author, or a peer on the wire), not implementation |
+| Key Design Decisions | ≥ 1 row per non-trivial new class; every choice cites a concrete codebase or `CLAUDE.md` reference |
+| Scope (In) | explicit list, not "the feature" |
+| Scope (Out) | ≥ 1 explicit non-goal |
 | Sweep Inventory | present only when the plan adds a cross-cutting rule; then every such rule has its sibling-site table (from the Phase 1.4 grep), zero unmarked rows. No rule added → no heading |
-| Security & Cost Surface | seven rows, each a prose answer to the row's questions ending in a Proof line, or `N/A — <reason>`; carried forward from Phase 1.6 |
-| Approach | enumerates files/components in implementation order |
+| Security & Cost Surface | seven rows, each a prose answer to the row's questions ending in a Proof line, or `N/A: <reason>`; carried forward from Phase 1.6 |
+| Approach | enumerates files in implementation order, module by module |
 | Acceptance Criteria | ≥ 3 verifiable rows with a Verification column filled in |
-| Reuse and patterns | ≥ 1 file path marked call or mirror, **or** an explicit "no reuse — building from scratch because X" line; not "follow project conventions" |
-| Testing Strategy | per-PR test table with named test files, behavioural descriptions, and a **red case** per test ("fails when ___" — unstatable red case means the test is decoration); every new gate/ban/allowlist names its committed negative fixture; every new test file names the CI job that runs it. No restated standing rules (TDD, coverage, single-run variants, testing-skill loading) — the repo's `CLAUDE.md` carries those |
+| Reuse and patterns | ≥ 1 file path marked call or mirror, **or** an explicit "no reuse: building from scratch because X" line; not "follow project conventions" |
+| Testing Strategy | per-PR test table with named test classes, `method_condition_expected` test names, behavioural descriptions, and a **red case** per test ("fails when ___"; an unstatable red case means the test is decoration); every new guard or limit names the test that feeds it the input it must reject; every new test class names the Gradle command that runs it (`./gradlew :bend-<module>:test --tests '<fqcn>' --rerun`). No restated standing rules (coverage, JaCoCo, test framework); `CLAUDE.md` carries those |
 | Edge Cases | ≥ 3 cases drawn from the Phase 1.5 ✓ Edge Cases evidence |
 | Risks | ≥ 1 specific risk; not "the implementation may have bugs" |
-| Wireframes / Site Docs Sync | substance OR explicit `N/A — <reason>`; Site Docs Sync marks each doc surface **and its mirror** (e.g. an LLM-facing text export of the docs, if the repo ships one) Update / N/A per row |
-| Migration / Schema Changes | present only when the schema changes; then the table/column/index list. No schema change → no heading |
+| Documentation Sync | every row (`protocol-v1.md`, `client-api` Javadoc, `CLAUDE.md`) marked Update or `N/A: <reason>` |
 | DECISIONS.md entries | each 5–10 non-blank lines, heading included, in the Context / Decision / Rejected shape of [`decisions-template.md`](references/decisions-template.md); a longer entry is split or trimmed |
-| Hedge parentheticals | Zero `(or whatever)` / `(TBD)` / `(or X)` hedges on load-bearing claims. A hedge papers over a decision you owe — decide it and cite it (Phase 1.4), or escalate via `AskUserQuestion`. |
+| Hedge parentheticals | Zero `(or whatever)` / `(TBD)` / `(or X)` hedges on load-bearing claims. A hedge papers over a decision you owe: decide it and cite it (Phase 1.4), or escalate via `AskUserQuestion`. |
 
 When every row is OK, proceed to Phase 5.
 
@@ -405,30 +377,27 @@ When every row is OK, proceed to Phase 5.
 
 **Before showing the plan to the developer**, spawn **two reviewers in parallel** against the saved PLAN.md:
 
-- `plan-reviewer` — scores 1-10 against codebase conventions (enums, auth, module shape, arch tests). Owns the convention bar.
-- `surface-reviewer` — scores 1-10 against the seven question-shaped rows of the Security & Cost Surface section, with `mode: "plan"`. Owns the security / cost / audit / lifecycle / enforcement bar.
+- `plan-reviewer`: scores 1-10 against codebase conventions (packet and value class shape, exception policy, the `ByteBuf` boundary, module dependency direction, test naming, module shape). Owns the convention bar.
+- `surface-reviewer`: scores 1-10 against the seven question-shaped rows of the Security & Cost Surface section. Owns the hostile-input / lifecycle / threading / resource / spec-conformance bar.
 
-**Spawn both in a single message with two `Agent()` calls** so they run concurrently. Do not issue them sequentially — if parallel spawning is unavailable in this environment, stop and say so instead. The reviewers are designed to run on a static snapshot of PLAN.md at the same moment; sequencing them lets the second see partial edits from the first and undermines the independent-context property that makes the dual-spawn valuable.
+**Spawn both in a single message with two `Agent()` calls** so they run concurrently. Do not issue them sequentially; if parallel spawning is unavailable in this environment, stop and say so instead. The reviewers are designed to run on a static snapshot of PLAN.md at the same moment; sequencing them lets the second see partial edits from the first and undermines the independent-context property that makes the dual-spawn valuable.
 
-Pass the `<skill dir>` resolved in Phase 1.4 in each prompt — both read this skill's own reference files (`module-shape-lens.md`; `surface-questions.md` and `quality-gates.md`) and have no other way to find them.
+Pass `docs/issues/<branch-name>/` as the plan directory and the `<skill dir>` from Phase 1.4 in each prompt: both read this skill's own reference files (`module-shape-lens.md`; `surface-questions.md` and `quality-gates.md`).
 
-Both must score ≥ 7 to proceed. The two reviewers exist because you'll rationalise your own design choices — context-free agents won't. They probe different surfaces (codebase conventions vs cross-cutting non-functional gaps), so a clean score on one doesn't substitute for the other.
+Both must score ≥ 7 to proceed. The two reviewers exist because you'll rationalise your own design choices; context-free agents won't. They probe different surfaces (codebase conventions vs cross-cutting robustness gaps), so a clean score on one doesn't substitute for the other.
 
-**Below 7 on either, the plan body changes before anything re-runs.** Each reviewer returns its findings to you in chat and writes nothing. Take every finding and fold it into the section it names — correct the citation, restructure the module, rewrite the row prose, record a reversed call in DECISIONS.md — then re-run that reviewer. The plan carries no `## Review Notes` and no verdict: a downstream reader wants the plan that passed, not the history of how it got there. One plan reached 1225 lines under the old rule, 769 of them ten rounds of appended notes.
+**Below 7 on either, the plan body changes before anything re-runs.** Each reviewer returns its findings to you in chat and writes nothing. Take every finding and fold it into the section it names (correct the citation, restructure the class, rewrite the row prose, record a reversed call in DECISIONS.md), then re-run that reviewer. The plan carries no `## Review Notes` and no verdict: a downstream reader wants the plan that passed, not the history of how it got there. One plan reached 1225 lines under the old rule, 769 of them ten rounds of appended notes.
 
-**Two failing re-runs, then stop and ask.** If a reviewer is still below 7 after two re-runs, the disagreement is a design call, not a convention slip — on that same plan, rounds three to five were reviewers finding new faults in the fixes for round two. Put the open finding to the developer with `AskUserQuestion`, recommending an option, and continue only on their answer.
+**Two failing re-runs, then stop and ask.** If a reviewer is still below 7 after two re-runs, the disagreement is a design call, not a convention slip: on that same plan, rounds three to five were reviewers finding new faults in the fixes for round two. Put the open finding to the developer with `AskUserQuestion`, recommending an option, and continue only on their answer.
 
 Then present the plan + both reviewer reports to the developer and ask: "Does this look good?". When approved, update PLAN.md `Status: Approved`.
 
 ### Handoff
 
-Plan is approved. Stop here — the next step is a separate skill, owned by the developer (or by Claude in continuation):
+Plan is approved. Stop here; the next step is a separate skill, owned by the developer (or by Claude in continuation): `/task-writer` turns PLAN.md into `docs/issues/<branch-name>/TASKS.md`, then `/next` works through it one task at a time.
 
-- **Frontend in scope** — invoke `/wireframe`. It owns generating `WIREFRAMES.md` and self-gates with `wireframe-reviewer`. Then `/core-skills:task-writer` (or `/core-skills:implement-plan` for small plans).
-- **Backend-only** — go straight to `/core-skills:task-writer` or `/core-skills:implement-plan`.
-
-Do not invoke `/wireframe`, `/core-skills:task-writer`, or their reviewers from inside this skill. Each downstream skill owns its own quality gate; chaining them here would recreate the mega-skill we just trimmed away.
+Do not invoke `/task-writer` or `/next` from inside this skill. Each downstream skill owns its own quality gate; chaining them here would recreate the mega-skill we just trimmed away.
 
 ## Anti-patterns to avoid
 
-See [`references/anti-patterns.md`](references/anti-patterns.md) — lessons-from-pain captured outside SKILL.md so they're loaded once on demand, not every invocation.
+See [`references/anti-patterns.md`](references/anti-patterns.md): lessons-from-pain captured outside SKILL.md so they're loaded once on demand, not every invocation.

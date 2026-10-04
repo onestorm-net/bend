@@ -1,54 +1,46 @@
 # Runtime-state simulation
 
-A clean static diff is not proof of behaviour. Execute the changed code — in your head, or by a
-read-only probe — along the paths the happy-path test never takes. For each path below that the
+A clean static diff is not proof of behaviour. Execute the changed code (in your head, or by a
+read-only probe) along the paths the happy-path test never takes. For each path below that the
 diff can reach, say what happens; for each it cannot, say why not.
 
-- **The second and Nth loop iteration** — state read after the first write; a per-iteration
-  query, relation load, audit row, broadcast serialization or SDK call (also an N+1).
-- **The cancelled or partial path** — a new guard that locks the user out for good; a
-  half-written row; a step that ran and cannot be undone.
-- **The row, tenant, or install that already exists** — an edited schema, a new default, a
-  backfill that no-ops on rows already in place.
-- **The non-default toggle** — a positional selector, a magic offset, or an index assumption
-  that does not survive a column toggled off or a non-default filter.
-- **The absent, empty, or zero value** — an unset field that becomes a valid one: integer
-  coercion turns absent into `0`, and an enum lookup on `0` matches the first case, so "not
-  set" silently reads as the first state. Enumerate the adjacent unhandled case.
-- **The concurrent second actor** — the same request or job twice at once. Trace lock order and
-  snapshot timing under the isolation level before claiming either safety or a race; a
-  scheduler with no overlap guard is this case. Name what produces the second actor — a
-  retry, a redelivery on an at-least-once queue, a cron overlap, a worker pool, a
-  double-click, the clock, or a shared serialization point every write touches — or say
-  that nothing in this tree does.
-- **The multi-step flow's failure branch** — does a non-validation error surface anything?
-  does unmount cleanup destroy state a committed step needs? does a retry re-run a step that
-  is not idempotent? An ORM delete inside a retried transaction is this case: where rollback
-  does not restore the model's in-memory "exists" state, attempt two returns without deleting.
-- **The batch item that throws** — first establish what the batch owes its caller when one
-  item fails: abort the run, skip the item and report it, or roll every item back. Read the
-  transaction boundary, the queue's retry, and what the caller does with the count. Then
-  simulate one throwing item against that contract: under abort, the earlier items left
-  applied with nothing said; under skip, a skipped item nobody hears of; under roll back, a
-  partial run that reports success. A missing per-item guard is a finding only where the
-  contract is per-item.
+- **The second and Nth iteration**: state read after the first write; a second frame in the
+  same buffer; a decoder's reader index after the first `decode()` call; a per-element
+  allocation, registry lookup, or flush inside a loop over a peer-sized list.
+- **The partial read**: bytes split across reads at every boundary that matters (inside the
+  length VarInt, between length and body, inside a field). A decoder must leave the reader
+  index unmoved and wait, never consume a prefix and hand back a shorter value. Walk the
+  1-, 2-, 3- and 4-byte VarInt cases.
+- **The cancelled or partial path**: the connection closes mid-handshake, mid-acknowledgement,
+  mid-dispatch; a step that ran (an endpoint registered, a timer scheduled, a buffer retained)
+  and is not undone when the channel goes inactive.
+- **The connection that already exists**: an endpoint registered or unregistered while peers
+  are connected obligates a fresh `Available Endpoints` / `Supported Endpoints` snapshot to
+  each of them; a change that only affects new connections leaves live ones stale.
+- **The non-default configuration**: a `maximumFrameLength` other than the one the tests use,
+  a cap clamped by `Math.min` against `MAXIMUM_FRAME_LENGTH`, debug stack traces on.
+- **The absent, empty, or zero value**: an empty endpoint list, a zero-length string, a frame
+  length of `0` (canonical `0x00` is padding, `0x80 0x00` is not), flags `0`, a packet id the
+  protocol never registered. Enumerate the adjacent unhandled case.
+- **The non-canonical encoding**: a VarInt written with more bytes than its value needs. Bend
+  decodes these tolerantly by ruling, so any guard keyed to the leading byte rather than the
+  decoded value can be walked around.
+- **The concurrent second actor**: the Netty event loop and a user thread at once (a user
+  calling `register` / `unregister` / `send` while the event loop dispatches), or two event
+  loops sharing one registry. Name the shared state, both actors, and the window between them,
+  and what publishes the write across threads (a concurrent collection, `volatile`, execution
+  on the channel's event loop), or say that nothing in this tree produces the second actor.
+- **The in-flight message**: an `Endpoint Message` already decoded and queued for a handler
+  whose endpoint is being unregistered. Say what the handler sees and what the peer sees.
+- **The timer outliving its connection**: a scheduled timeout or keep-alive task still armed
+  after the channel closed or the state it guards advanced. Walk each to its cancel site.
+- **The multi-step flow's failure branch**: does a failure mid-flow send the `Disconnect` the
+  spec requires, with the right `Type`? Does a retry or reconnect re-run a step that is not
+  idempotent (a registration, a listener added twice)?
+- **The element that throws**: one invalid `Endpoint` in an `Available Endpoints` list, one
+  handler that throws during dispatch. First establish what the contract owes: reject the whole
+  packet (protocol error) or isolate the element. Then simulate the throwing element against
+  that contract: half the list applied, a handler exception that kills the connection for an
+  unrelated endpoint, or one that vanishes.
 
-On a **presentational diff** — templates, styles, transitions, composables or hooks — simulate
-the UI runtime; CSS and lifecycle are behaviour:
-
-- the departing element that stays interactive — a leave transition with no
-  `pointer-events: none` keeps the node clickable
-- the real containing block — `position: absolute` resolves against the nearest positioned
-  ancestor; an element with none jumps; stacking-context assumptions are the same family
-- the timer or listener outliving the state that armed it — a cleared flag and a still-armed
-  timer fires into the next occupancy; walk each to its cancel site. Anything subscribed,
-  watched, or registered in a path that runs more than once (route resolvers, navigation
-  guards, re-renders) needs a matching teardown.
-- the refetch racing a live event — a wholesale `state = await fetch()` resolving after a live
-  event overwrites newer state, which becomes the next baseline; a search or filter re-issued
-  before the previous answer lands is the same shape. Where the repo has a latest-request seam
-  for this, name it.
-- the capped snapshot as the universe — a fact derived from absence in a truncated list
-  fabricates state outside the window
-
-A break on any of these is a real finding on a clean diff with green CI.
+A break on any of these is a real finding on a clean diff with a green build.

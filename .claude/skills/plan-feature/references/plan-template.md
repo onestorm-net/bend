@@ -1,32 +1,31 @@
 # PLAN.md template
 
-Save the plan to `<plan-root>/<slug>/PLAN.md` (`plan_root`, default `docs/plans`). Use this exact structure — the downstream
-agents (`plan-reviewer`, `surface-reviewer`, `/wireframe`, `/core-skills:task-writer`, `/core-skills:implement-plan`,
-`precedent-reviewer`) parse the section names, so don't rename the ones you keep.
+Save the plan to `docs/issues/<branch-name>/PLAN.md`, where `<branch-name>` is the exact current
+branch (`BD-NNNN-<kebab-slug>`). Use this exact structure: the downstream agents and skills
+(`plan-reviewer`, `surface-reviewer`, `/task-writer`, `/next`, `precedent-reviewer`) parse the
+section names, so don't rename the ones you keep.
 
 The plan has two readers, and every section is sized for them: the implementing session, which
 often starts after a `/clear` with nothing but `CLAUDE.md` and this file, and `precedent-reviewer`
 at PR time, which holds the Security & Cost Surface prose against the diff. A section that
-neither reader needs does not go in. What the planner needed to *reach* the plan — the gap table,
-the pre-flight resolver output — stays in the planning conversation. So does everything the
+neither reader needs does not go in. What the planner needed to *reach* the plan (the gap table,
+the pre-flight resolver output) stays in the planning conversation. So does everything the
 reviewers produce: `plan-reviewer` and `surface-reviewer` report to the session, and the plan
 carries no record of their verdicts. A plan that passed is the record.
 
-Two sections are conditional: `## Sweep Inventory` and `## Migration / Schema Changes` appear
-only when they have content. A feature that adds no cross-cutting rule and no schema change omits
-both headings rather than carrying an `N/A` row.
+One section is conditional: `## Sweep Inventory` appears only when the plan adds a cross-cutting
+rule. Otherwise the heading is omitted rather than carrying an `N/A` row.
 
 ```markdown
-# <slug>: <name>
+# <branch-name>: <name>
 
 **Date:** <YYYY-MM-DD>
 **Status:** Draft
-**Issue:** [<issue-key>](link to tracker issue) — or `N/A — no issue tracker` when
-`issue_tracker_skill` is `none`
+**Issue:** [BD-NNNN](https://onestorm.kendo.dev/projects/1/issues/BD-NNNN)
 **Decisions:** [DECISIONS.md](DECISIONS.md)
 
 ## Goal
-<one sentence — what this enables for the user>
+<one sentence: what this enables for a user of Bend (a client or server author, or a peer on the wire)>
 
 ## Key Design Decisions
 
@@ -35,85 +34,73 @@ developer can catch convention violations in 30 seconds without parsing the full
 
 | Decision | Choice | Convention Reference |
 |----------|--------|---------------------|
-| <what needed deciding> | <what you chose> | <file:line or pattern that proves this matches the codebase> |
+| <what needed deciding> | <what you chose> | <file:line, `Class#member`, or CLAUDE.md section that proves this matches the codebase> |
 
 Examples of what belongs here:
-- Enum type: "int-backed PHP enum + enumCollection frontend" → reference existing enum file
-- Where auth logic lives: "Interaction class in Policies/Interactions/" → reference existing interaction
-- Data storage: "new pivot table" → reference existing pivot table
-- Frontend state: "adapter-store pattern" → reference existing store file
+- Packet shape: "Lombok `@Getter @Setter @NoArgsConstructor @AllArgsConstructor` class implementing `Packet`, registered in `ProtocolV1`" → reference `KeepAlivePacket.java`
+- Bad-input exception: "`ProtocolException` on decode, `IllegalArgumentException` for a caller passing an out-of-range value at setup" → reference CLAUDE.md § API design decisions and `AbstractProtocol`
+- Payload type at the API boundary: "`java.nio.ByteBuffer`, converted in `client-netty`" → reference CLAUDE.md § API design decisions
+- Construction: "implementation builder (`NettyClient.builder()...connect()`) returning the `Client` interface" → reference CLAUDE.md § In-flight work (client)
 
 **Every choice must cite a concrete codebase reference.** If you can't point to an existing
-file that proves this matches the conventions, flag it as a deliberate deviation and explain why.
+file or a `CLAUDE.md` decision that proves this matches the conventions, flag it as a deliberate
+deviation and explain why.
 
-**Architecture test compliance:** For each decision that creates a new structural component
-(controller, action, model, DTO, migration, etc.), note the arch test rules it must satisfy.
-Example: a new Action class might need to be `final readonly`, single `execute()`, inject
-its dependencies, wrap mutations in a transaction, and call the audit logger — note which
-arch test enforces each rule.
-
-**Layer compliance:** For each new class, note which layer it lives in and confirm the
-layer's dependency rules allow it to depend on everything it needs (per the project's
-static-analysis config).
-
-## Wireframes
-
-<if feature includes frontend work>
-Structured screen specifications: [WIREFRAMES.md](WIREFRAMES.md) — design tokens, component names,
-props, emits, and layout hierarchies. Generated by `/wireframe` after plan approval and graded by
-`wireframe-reviewer`.
-<else>
-No frontend changes — wireframes not applicable.
+**Layer compliance:** For each new class, note which module it lives in and confirm that
+module's `build.gradle.kts` dependencies and the CLAUDE.md layer rules allow it to depend on
+everything it needs (no Netty types in `client-api`; `client-api` depends on nothing;
+implementation modules depend only on their api module and `protocol`).
 
 ## Scope
 - **In scope:** <explicit list>
-- **Out of scope:** <explicit list — things confirmed we're NOT building>
+- **Out of scope:** <explicit list: things confirmed we're NOT building>
 
 ## Approach
-<which files to create/modify, in what order>
+<which files to create/modify, in what order, grouped by module (`protocol` first when the wire
+changes, then the api module, then the `-netty` implementation)>
 
 ## Sweep Inventory
 
-<Only when the plan adds a cross-cutting rule — a header every response must stamp, a broadcast
-every status transition must fire, an audit hook every variant must call, a pattern every sibling
-component must adopt. Omit the heading otherwise.>
+<Only when the plan adds a cross-cutting rule: a length check every array reader must run, a
+validation every packet's decode must call, a disconnect every timeout path must send, a release
+every handler that consumes a `ByteBuf` must do. Omit the heading otherwise.>
 
 Enumerate the sibling sites mechanically and mark each one. The site list comes from the
 Phase 1.4 grep, not from memory: cite the pattern searched.
 
 | Rule added | Sibling site (grep hit) | Status |
 |---|---|---|
-| <the rule> | <file / route / component the rule must reach> | Applied / Skipped — <reason a reviewer can check> |
+| <the rule> | <file / class / method the rule must reach> | Applied / Skipped: <reason a reviewer can check> |
 
-An unmarked row blocks Phase 4d — review keeps finding site N+1 of an N-site sweep, and this
+An unmarked row blocks Phase 4d: review keeps finding site N+1 of an N-site sweep, and this
 table is where site N+1 gets found first.
 
 ## Security & Cost Surface
 
-Carried forward from Phase 1.6. Seven rows; each row is a **prose answer** to the row's questions ending in a `Proof:` line, or `N/A — <one-line reason>`. Audited at Phase 5 by `surface-reviewer` (running in parallel with `plan-reviewer`).
+Carried forward from Phase 1.6. Seven rows; each row is a **prose answer** to the row's questions ending in a `Proof:` line, or `N/A: <one-line reason>`. Audited at Phase 5 by `surface-reviewer` (running in parallel with `plan-reviewer`).
 
-The canonical questions for each row live in [`surface-questions.md`](surface-questions.md) (next to this template) — fill prose here that answers those questions, don't paraphrase them back.
+The canonical questions for each row live in [`surface-questions.md`](surface-questions.md) (next to this template); fill prose here that answers those questions, don't paraphrase them back.
 
-### Untrusted input → LLM prompt
-<prose: which user-controlled fields reach an LLM context, which framework tags wrap each, evidence the sanitizer escapes all wrapping tags on every call; OR `N/A — <reason>`>
+### Untrusted wire input and allocation bounds
+<prose: each field read off the wire and which side decodes it, the check that runs before every peer-sized allocation or loop, reader/writer width symmetry, the exception malformed input raises, spec MUST validation on decode; OR `N/A: <reason>`>
 
-### External mutation
-<prose: timeout policy + arch-test citation, all three partial-failure shapes walked (local-then-external throws / external-then-local rolls back / concurrent collision wins-loses) with compensating action or idempotency mechanism for each, multi-instance cleanup loop if applicable; OR `N/A — <reason>`>
+### Connection lifecycle, timeouts and silent peers
+<prose: states added or changed with happy path and failure walk, the timeout bounding every wait (value, spec rule, mechanism, cancellation on close), which side disconnects with which `Disconnect` type, what the API caller observes; OR `N/A: <reason>`>
 
-### Endpoint surface
-<prose: authz granularity per route, named rate limiter, spend cap for paid endpoints, opaque-token strategy for any redirect-bound state, cross-tenant guard for any externally-keyed find-or-overwrite; for broadcast channels: subscriber gate vs REST-permission parity, egress multiplier, transition window on rename/merge; OR `N/A — <reason>`>
+### Threading and the event loop
+<prose: which thread runs each new piece of code, anything that can block the event loop (including user handlers), shared state and what makes it safe, how public methods hand off to the event loop and preserve ordering; OR `N/A: <reason>`>
 
-### Audit-log fidelity
-<prose: when written (press/outcome/both), what snapshotted at action-time, which outcomes enumerated (failure / expiry / terminate / timeout — not only success), variant parity across singular/bulk/scheduled; OR `N/A — <reason>`>
+### Resource ownership
+<prose: owner and release of every `ByteBuf` on success and failure paths, copy vs view at the `ByteBuffer` boundary, the bound on every per-connection growth, a listener on every `ChannelFuture`, what is freed on close; OR `N/A: <reason>`>
 
-### State-machine walkthrough
-<prose: each new state machine, happy path AND failure modes (terminal / retry-exhausted / partial-rollback / concurrent-race / payload-dropped); every side effect outside the primary DB write (broadcast / cache bump / un-awaited promise) with its inside-vs-after-transaction position, retry behaviour, and who observes its failure; the client-facing signal for any silent-degradation case; OR `N/A — <reason>`>
+### Spec conformance
+<prose: the `protocol-v1.md` rules touched (quoted by section), where each is enforced on each side, the exact spec edit and compatibility/version impact if the wire or a rule changes, no unreachable defensive checks; OR `N/A: <reason>`>
 
-### Convention enforcement level
-<prose: each new structural rule introduced, its Enforcement Escalation Ladder level (L1 arch test / L2 static-analysis rule / L3 runtime / L4 code-review-only with explicit trade-off), and for new methods on existing convention-bearing clients, which host conventions are inherited and where; OR `N/A — <reason>`>
+### Public API surface, module boundaries and enforcement
+<prose: new public types and methods (no Netty types), module dependency changes, separate built-in and endpoint send paths, caller-misuse behaviour, Javadoc on new public types, the enforcement level (L1 compile time / L2 test / L3 runtime / L4 review with trade-off) of each new structural rule; OR `N/A: <reason>`>
 
-### Client-side state
-<prose: each request that can be re-issued before its answer lands and what discards a superseded response; each watcher, realtime handler or prime that writes state a user gesture also writes, and its mask; what the user sees after each swallowed error; each new interactive element's native control or accessible name and the gate covering it; OR `N/A — no client change` (not acceptable when the Approach lists a component, store or composable)>
+### Runtime endpoint add and remove
+<prose: the update cycle for add and remove on a live connection, in-flight messages on a removed endpoint, overlapping updates and revisions, handling of unknown or wrong-direction messages, supported-set recomputation; OR `N/A: <reason>`>
 
 ## Acceptance Criteria
 
@@ -122,70 +109,57 @@ QA will check each criterion against the implementation.
 
 | # | Criterion | Verification |
 |---|-----------|-------------|
-| 1 | <user-visible outcome — binary pass/fail> | <how to verify: route to visit, action to take, assertion to check> |
+| 1 | <observable outcome: binary pass/fail> | <how to verify: the test and the `./gradlew` command that runs it, or the bytes to send and the response to expect> |
 | 2 | ... | ... |
 
 ## Reuse and patterns
 
-<One list. Each line is a file path plus what the implementer takes from it: a helper, component
-or service to **call**, or a sibling whose **shape to mirror**. This is the only place a session
-that starts cold learns which existing code the plan was built on — the Approach names the files
-to create or edit, not the files to copy from.>
+<One list. Each line is a file path plus what the implementer takes from it: a helper or class
+to **call**, or a sibling whose **shape to mirror**. This is the only place a session that starts
+cold learns which existing code the plan was built on; the Approach names the files to create or
+edit, not the files to copy from.>
 
-- `<path>` — call: <what it provides>
-- `<path>` — mirror: <what shape to copy>
+- `<path>`: call: <what it provides>
+- `<path>`: mirror: <what shape to copy>
 
-Write "no reuse — building from scratch because X" when there is genuinely nothing; never leave
+Write "no reuse: building from scratch because X" when there is genuinely nothing; never leave
 the section empty or say "follow project conventions".
-
-## Migration / Schema Changes
-
-<Only when the plan changes the schema — table changes, new columns, indexes. Omit the heading
-otherwise.>
 
 ## Testing Strategy
 
-<Per-PR test tables only. The standing rules — TDD, the coverage threshold, single-run test
-variants, and loading the project's testing skill before writing a test — live in the repo's
-`CLAUDE.md`, which every session loads; do not restate them here.>
+<Per-PR test tables only. The standing rules (JUnit Jupiter + AssertJ, JaCoCo reporting, the
+coverage expectations) live in `CLAUDE.md`, which every session loads; do not restate them here.>
 
-<for each PR, include a table with test file names and behavioral test descriptions>
-<test names MUST start with "should" and describe user-visible outcomes>
-<3-6 tests per component — more means you're testing implementation>
-<each test states its red case — "fails when ___". A test whose red case can't be stated is
-decoration: permissive mocks and unasserted stubs pass whatever the code does>
-<every new gate, ban, or allowlist ships a committed negative fixture proving the gate can fail>
-<every new test file names the script and CI job that runs it — a suite CI never invokes is not
-a weaker gate, it is no gate at all>
+<for each PR, include a table with test class names, test method names and behavioral descriptions>
+<test method names follow `method_condition_expected`, e.g. `decode_arrayLengthExceedsReadable_throws`,
+`getPacketId_unregisteredClass_throws`; never "should...">
+<3-6 tests per class under test; more usually means you're testing implementation>
+<each test states its red case: "fails when ___". A test whose red case can't be stated is
+decoration: a round-trip through the same buggy reader and writer, a threading test on an
+`EmbeddedChannel`, a timeout test that never advances time, all pass whatever the code does>
+<every new guard or limit ships a test that feeds it the input it must reject (a length prefix
+larger than the readable bytes, a 17-byte NUL run, a zero-length frame, a namespaced id with an
+upper-case letter)>
+<every new test class names the Gradle command that runs it:
+`./gradlew :bend-<module>:test --tests '<fully.qualified.TestClass>' --rerun`>
 
-## Site Documentation Sync
+## Documentation Sync
 
-Check if the feature touches any public-facing documentation surface. Every matching area gets
-its own row marked **Update** or **N/A — <reason>** — "checked, nothing to update" is a row, not
-an omission. The exact source-to-docs map is project-specific: when `.claude/project-context.md`
-sets `references.site_docs_sync`, that file's map replaces the table below — one row per entry in
-it. Otherwise consult the project's documentation conventions (often a `site/` or `docs/` tree).
-Common categories worth checking:
+Every row is marked **Update** (with what changes) or **N/A: <reason>**; "checked, nothing to
+update" is a row, not an omission.
 
-| Source change | Update docs |
-|---|---|
-| API routes / public response shapes | API reference docs |
-| MCP tools or resources | MCP integration docs |
-| CLI commands or flags | CLI reference docs |
-| External integrations (GitHub, OAuth, etc.) | integration guides |
-| Feature behavior or new capabilities | user guides |
-| New user-facing feature | landing-page claims |
-| **Any** docs change above | Every mirror of the docs — e.g. an LLM-facing text export (`llms-full.txt` or similar) copied verbatim into the build. A claim fixed in the source docs alone keeps shipping in the mirror; one past fix corrected one of two claim locations and review found the other |
-| Conventions, allowlists, or components this feature deletes or renames | The `CLAUDE.md` entry or design-system reference describing them — a stale description steers the next contributor toward a file that is gone |
+| Source change | Document | Update / N/A |
+|---|---|---|
+| Wire format, packet fields, limits, MUST/disconnect rules, flow | `protocol/protocol-v1.md` | |
+| New or changed public type or method in `client-api` (or `protocol`, where public) | Javadoc on that type | |
+| A design decision, layer rule, convention or module plan this feature makes, changes, deletes or renames | `CLAUDE.md` (the matching section; "Status", "In-flight work" and "Module set" go stale first) | |
 
 This table asks **which** documents change. What they then *claim* is checked after the fact
 by `correctness-reviewer`'s promised-behaviour rule (Sins of omission), which runs on every
-branch. There is no eighth surface row for it: user-facing text is most often edited on branches
-that wrote no plan at all, so a plan question would never reach them and the check has to sit at
-review time.
+branch.
 
 ## Edge Cases
-<cases from the Q&A — how each is handled>
+<cases from the Q&A: how each is handled>
 
 ## Risks
 <what could go wrong, what to watch for during implementation>
