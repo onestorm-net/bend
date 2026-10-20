@@ -104,7 +104,7 @@ Questions:
 - Does any module gain a dependency? `client-api` depends on nothing; implementation modules may depend on their api module and `protocol`. Name the `build.gradle.kts` change, or confirm there is none.
 - Does the API keep the two send paths separate: built-in packets written internally, user payloads through the public, registration-checked path?
 - What does a caller get wrong most easily with this API (calling before connect, after close, registering twice, mutating a buffer after `send`), and is that an `IllegalStateException` / `IllegalArgumentException` at the call, or silent misbehaviour?
-- Every new public type in `client-api` (and `protocol`, where it is treated as public) needs Javadoc; name the types.
+- Every new public type in `client-api` (and `server-api`, once it exists) needs Javadoc; name the types.
 - For each new structural rule the plan introduces ("every packet validates on decode", "no handler blocks", "every array reader calls `validateArrayLength`"), what enforces it? Bend has no linter or architecture tests, so the ladder is:
   - **L1**: compile time (module dependency absent from `build.gradle.kts` so the import cannot compile, a `final` or sealed type, a method signature that cannot accept the wrong thing)
   - **L2**: a test that fails when the rule is broken (name it)

@@ -151,7 +151,7 @@ update" is a row, not an omission.
 | Source change | Document | Update / N/A |
 |---|---|---|
 | Wire format, packet fields, limits, MUST/disconnect rules, flow | `protocol/protocol-v1.md` | |
-| New or changed public type or method in `client-api` (or `protocol`, where public) | Javadoc on that type | |
+| New or changed public type or method in `client-api` (or `server-api`) | Javadoc on that type | |
 | A design decision, layer rule, convention or module plan this feature makes, changes, deletes or renames | `CLAUDE.md` (one line under the matching heading, root or module) plus the reasoning in this issue's `DECISIONS.md`, or an update to the ADR whose Decision changes | |
 
 This table asks **which** documents change. What they then *claim* is checked after the fact

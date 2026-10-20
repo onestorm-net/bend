@@ -94,8 +94,9 @@ Each module has its own `CLAUDE.md` with the rules specific to it.
 
 ## Documentation scope
 
-- Javadoc covers public contract modules (`client-api`, and `protocol` where it is public), not
-  implementation modules. ([0021](/docs/decisions/0021-javadoc-scope.md))
+- Javadoc covers the API modules (`client-api`, later `server-api`), not implementation
+  modules. Whether `protocol` gets Javadoc is not decided.
+  ([0021](/docs/decisions/0021-javadoc-scope.md))
 
 ## Workflow
 
