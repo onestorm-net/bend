@@ -164,7 +164,7 @@ untracked 740-line CLAUDE.md, with every decision kept and every citation still 
         - `plan-feature` SKILL and references, `fix-bug`, `kendo`, `review-branch` SKILL and `finder-base.md`: history and role citations repointed to ADRs
         - `client-api`, `client-netty`, `server-netty` `build.gradle.kts`: status comment replaced by a pointer to the module's CLAUDE.md
 
-- [ ] **1.5** Final verification
+- [x] **1.5** Final verification
     - **Verify:**
         - [ ] Checks 1, 3, 4, 5, 6, 7, 8 and 10 from PLAN.md's code block all pass on the full tree
         - [ ] Check 9 over the index (`git grep --cached`) finds nothing; `git check-ignore .claude/local-references.md` matches
@@ -173,6 +173,11 @@ untracked 740-line CLAUDE.md, with every decision kept and every citation still 
         - [ ] `./gradlew build` passes (the build-script comment edits must not break it)
         - [ ] JaCoCo gap check: N/A, no Java source changed (`git diff --stat development... -- '*/src/'` is empty)
     - **Success:** All ten acceptance criteria verified, build green, nothing local-only staged or in the PR text.
+    - **Completed:** 2026-10-20
+    - **Learnings:**
+        - The plan's src check used `development...`; this checkout only has `origin/development`, so use the remote ref.
+        - Results on the committed tree: checks 1, 3, 8, 10 print nothing; check 4 prints 24 and 24; check 5 finds ADR links in all four module files; check 7 lists all four reviewer files for both patterns; check 9's pattern finds nothing in `HEAD`, `CLAUDE.md` is tracked and `local-references.md` ignored and untracked; 0 of 92 `MAPPING.md` rows open; 0 files under `*/src/` changed; `./gradlew build` passes.
+        - The PR description check (check 9's pattern over the body) runs at `/pr`, when the body exists.
 
 ## Coverage Check
 
