@@ -58,8 +58,9 @@ Each module has its own `CLAUDE.md` with the rules specific to it.
 
 ## Testing / coverage
 
-- Tests: JUnit Jupiter and AssertJ, one test class per production class, methods named
-  `method_condition_expected`.
+- Tests use JUnit Jupiter and AssertJ; a test class is named `<ClassUnderTest>Test` in the
+  mirrored package under `src/test/java`, with methods named `method_condition_expected`. This
+  is codebase convention (see the existing tests), not an ADR ruling.
 - Coverage reports are XML and CSV under `<module>/build/reports/jacoco/test/`; there is no
   coverage gate. ([0010](/docs/decisions/0010-coverage-reporting.md))
 - A defensive check for a case the current code can't produce is deleted, not kept; a missed
@@ -103,7 +104,8 @@ Each module has its own `CLAUDE.md` with the rules specific to it.
 - `development` is the integration branch; `main` only moves through a release PR. Issue
   branches are `BD-NNNN-<slug>`, small issue-less changes `<type>/<slug>`, all PR'd into
   `development`. ([0022](/docs/decisions/0022-workflow-branches-and-commits.md))
-- Commit messages and PR titles end with the issue key: `(BD-NNNN)`.
+- Commit messages and PR titles end with the issue key: `(BD-NNNN)`; on a keyless
+  `<type>/<slug>` branch they have no suffix.
   ([0022](/docs/decisions/0022-workflow-branches-and-commits.md))
 - The skills in `.claude/skills/` carry the step-by-step workflow (`/newbranch`,
   `/plan-feature`, `/task-writer`, `/next`, `/commit`, `/review-branch`, `/pr`); see

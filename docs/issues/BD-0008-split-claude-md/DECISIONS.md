@@ -122,3 +122,13 @@
 **Rejected:**
 - Relative links (`../../`): differ per file and break on a move.
 - Plain root paths as code text, no link: unambiguous, but not clickable on GitHub.
+
+## D13: ADR 0012 bans every Netty type, not only `ByteBuf`
+**Status:** Accepted
+
+**Context:** Branch review flagged that ADR 0012 names `Channel`, `ChannelFuture` and `EventLoop` where the old rule named only `ByteBuf`, and that its Decision carried the one-off `EndpointCodec` rework.
+
+**Decision:** The developer confirmed the rule covers all Netty types: the old text named `ByteBuf` only because it was the one type that had leaked into the API, and the dependency and versioning reasons apply to any Netty type. The `EndpointCodec` rework moves to Context as an example; it is tracked work, not a rule.
+
+**Rejected:**
+- Narrowing the ban to `ByteBuf`: leaves the other Netty types allowed for no reason.

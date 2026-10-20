@@ -99,7 +99,7 @@ Categories to check (find an existing example for each that applies):
 - **`ByteBuf` boundary and module dependency direction**: from Step 2c.
 - **Tests**: JUnit Jupiter + AssertJ (`assertThat`, `assertThatThrownBy`), test classes named `<ClassUnderTest>Test` in the mirrored package under `src/test/java/`, method names `method_condition_expected` (e.g. `getPacketId_unregisteredClass_throws`, `decode_arrayLengthExceedsReadable_throws`), never `should...`; `ByteBuf`s released in `finally`. Read an existing test (`protocol/src/test/java/net/onestorm/bend/protocol/util/ProtocolUtilTest.java`) before judging.
 - **Javadoc on public api types**: every new public type or method in `client-api` (and `server-api` once it exists) has Javadoc planned (ADR 0021; whether `protocol` gets Javadoc is not decided, so neither require nor flag it); implementation modules (`client-netty`, `server-netty`) don't get Javadoc'd (CLAUDE.md § Documentation scope).
-- **Defensive checks**: a planned check with no input that reaches it violates CLAUDE.md § Testing / coverage ("delete it now and add it back later, together with a real test").
+- **Defensive checks**: a planned check with no input that reaches it violates ADR 0009 (CLAUDE.md § Testing / coverage): it is deleted, and "comes back, with a real test, in the change that makes the case reachable".
 
 Do not assume you know what the convention is: read the actual code. For each category,
 find a concrete existing file, read it, then compare the plan's proposal against it. Where
