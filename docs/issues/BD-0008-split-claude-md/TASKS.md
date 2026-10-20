@@ -56,7 +56,7 @@ untracked 740-line CLAUDE.md, with every decision kept and every citation still 
         - Local only: backup outside the repo and `.claude/local-references.md`
     - **Notes:** The developer asked to run `/next` and `/commit` straight through, stopping only for decisions, so the checkpoint was not held as a pause; README.md and MAPPING.md are in the 1.1 commit for review at any time.
 
-- [ ] **1.2** ADRs 0001 to 0024
+- [x] **1.2** ADRs 0001 to 0024
     - **Context:**
         - **Why:** Keeps every decision's reasoning and alternatives once the root file shrinks (D1).
         - **Architecture:** Shape per PLAN step 4: `# NNNN: <title>`, `**Status:**`, optional `**Date:**`, `## Context`, `## Decision`, `## Does not decide`, `## Rejected`. `Deferred`/`Open` ADRs open their Decision with "This ADR binds nothing in 0.1." ADRs 0001 to 0007 cite `protocol/protocol-v1.md` sections for rule text and keep only the reasoning. A reversal is one ADR (D2, ADR 0018).
@@ -82,6 +82,15 @@ untracked 740-line CLAUDE.md, with every decision kept and every citation still 
         - [ ] Forward-looking notes sit under "Does not decide" in 0016 and 0022
         - [ ] Check 10 over `docs/decisions/` prints nothing
     - **Success:** 24 ADRs, each with one status and the five sections, every ADR row in `MAPPING.md` ticked.
+    - **Completed:** 2026-10-20
+    - **Learnings:**
+        - Moving decisions without widening them takes active checking: a first draft of 0004 said "every reader that allocates" must validate, where the old file only ruled on the two named readers. Narrowed back, with the general case under Does not decide.
+        - Machine-specific facts hide in Context prose too ("system-wide Gradle 8.8" in 0014); reworded to the general fact.
+        - Check 8 caught 0004 missing its spec link; the arrays are defined in the Available/Supported Endpoints packet sections.
+        - `ProtocolException` passes `enableSuppression = false` as well as `writableStackTrace = debugStackTraces`; 0011 records both.
+    - **Key Changes:**
+        - Created `docs/decisions/0001-*.md` to `docs/decisions/0024-*.md`: 21 Accepted, 2 Deferred (0017, 0024), 1 Open (0015)
+        - Modified `MAPPING.md`: 58 rows ticked; 34 rows wait on root or module CLAUDE.md lines (task 1.3)
 
 - [ ] **1.3** Module CLAUDE.md files, root CLAUDE.md, `.gitignore`
     - **Context:**
