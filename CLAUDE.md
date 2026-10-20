@@ -68,8 +68,9 @@ Each module has its own `CLAUDE.md` with the rules specific to it.
 
 ## Module naming convention
 
-- The API module gets the plain name (`client-api`); an implementation gets its transport as a
-  suffix (`client-netty`), never `-impl`. ([0013](/docs/decisions/0013-module-naming.md))
+- The API module gets the plain name (`client-api`); an implementation gets a suffix saying
+  what it is, i.e. what it's built on (`client-netty`), never the generic `-impl`, which only
+  works while there is a single implementation. ([0013](/docs/decisions/0013-module-naming.md))
 
 ## Module set
 

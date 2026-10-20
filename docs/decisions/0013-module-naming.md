@@ -11,8 +11,9 @@ client and a later non-Netty client), and forces a rename.
 
 - The public, stable contract gets the plain name: `client-api`, not `client` plus
   `client-interfaces`.
-- An implementation gets a suffix naming its transport or mechanism, never `-impl`. The
-  implementation modules are `client-netty` and `server-netty`.
+- An implementation gets a suffix that says what the implementation is: what it is built on
+  or how it works. Bend's are built on Netty, so the implementation modules are `client-netty`
+  and `server-netty`. Never the generic `-impl`.
 
 ## Does not decide
 
@@ -20,4 +21,5 @@ client and a later non-Netty client), and forces a rename.
 
 ## Rejected
 
-- `-impl`: breaks as soon as there are two implementations.
+- `-impl`: says nothing about the implementation, so it only works while there is exactly one,
+  and breaks (forcing a rename) as soon as there are two.
