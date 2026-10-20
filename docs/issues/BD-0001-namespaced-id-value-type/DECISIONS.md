@@ -20,15 +20,16 @@
 **Rejected:**
 - `of(namespace, key)` now: nothing calls it.
 
-## D3: No direction type; ADR 0018 stops listing one
+## D3: No direction type in BD-0001; whether client-api gets one stays open
 **Status:** Accepted
 
 **Context:** ADR 0018's Decision says `client-api` holds "its own small value types (namespaced id, direction)", but direction is implicit in `registerIncoming`/`registerOutgoing` (BD-0003).
 
-**Decision:** No direction type. ADR 0018's bullet keeps its point (client-api has its own value types and never reuses `protocol`'s) and names the namespaced id as the example.
+**Decision:** BD-0001 adds no direction type. ADR 0018's bullet keeps its point (client-api has its own value types and never reuses `protocol`'s) and names the namespaced id as the example; the direction type moves to its "Does not decide", so a later issue with a real use (e.g. a `TO_CLIENT`/`TO_SERVER`/both enum) can still add one.
 
 **Rejected:**
-- Building a direction type to match the ADR's wording: nothing would use it.
+- Building a direction type now to match the ADR's wording: nothing in this issue would use it.
+- Recording it under ADR 0018's Rejected: that would steer future issues away from it without a reason.
 
 ## D4: The id rule stays as specified; widening it is BD-0009
 **Status:** Accepted

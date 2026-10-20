@@ -52,7 +52,8 @@ dependencies, and CLAUDE.md § API design decisions requires exactly that.
 1. **ADR 0018** (`docs/decisions/0018-client-built-by-implementation-builder.md`, Decision, third
    bullet): "holds interfaces and its own small value types (namespaced id, direction)" becomes
    "holds interfaces and its own small value types, such as the namespaced id; it never reuses
-   `protocol`'s types". Record the change under D3 (already written).
+   `protocol`'s types", and "Does not decide" gains a line leaving a direction type open. Record
+   the change under D3 (already written).
    **CLAUDE.md** (§ API design decisions): add "Lombok is for `protocol` and the `-netty` modules
    only; an API module never uses it, not even `compileOnly`. (BD-0001 D8,
    [DECISIONS.md](/docs/issues/BD-0001-namespaced-id-value-type/DECISIONS.md))". **`client-api/CLAUDE.md`**:
