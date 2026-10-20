@@ -108,7 +108,7 @@ Each module has its own `CLAUDE.md` with the rules specific to it.
   `<type>/<slug>` branch they have no suffix.
   ([0022](/docs/decisions/0022-workflow-branches-and-commits.md))
 - The skills in `.claude/skills/` carry the step-by-step workflow (`/newbranch`,
-  `/plan-feature`, `/task-writer`, `/next`, `/commit`, `/review-branch`, `/pr`); see
+  `/plan-feature`, `/implement-plan`, `/task-writer`, `/next`, `/commit`, `/review-branch`, `/pr`); see
   `.claude/README.md`.
 
 ## Local references

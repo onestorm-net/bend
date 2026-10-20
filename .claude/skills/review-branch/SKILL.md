@@ -75,7 +75,8 @@ The work directory is `docs/issues/<branch-name>/`, named after the exact curren
 `.claude/references/plan-directory.md`). What it holds decides the branch shape, never the
 directory itself:
 
-- **`PLAN.md` exists** → plan-driven branch. Read `PLAN.md` / `DECISIONS.md` / `TASKS.md`.
+- **`PLAN.md` exists** → plan-driven branch. Read `PLAN.md` / `DECISIONS.md`, plus `TASKS.md`
+  or `IMPLEMENTATION.md`, whichever exists.
 - **`BUG.md` exists (and no `PLAN.md`)** → bug branch. Read `BUG.md`. This review is
   **optional on bug branches**: `bug-fix-verifier` is their gate, and `/pr` never asks for
   this run there. It runs when the developer explicitly wants it.

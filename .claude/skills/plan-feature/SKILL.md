@@ -398,9 +398,12 @@ Then present the plan + both reviewer reports to the developer and ask: "Does th
 
 ### Handoff
 
-Plan is approved. Stop here; the next step is a separate skill, owned by the developer (or by Claude in continuation): `/task-writer` turns PLAN.md into `docs/issues/<branch-name>/TASKS.md`, then `/next` works through it one task at a time.
+Plan is approved. Stop here; the next step is a separate skill, owned by the developer (or by Claude in continuation). Name both paths and recommend one by the plan's size:
 
-Do not invoke `/task-writer` or `/next` from inside this skill. Each downstream skill owns its own quality gate; chaining them here would recreate the mega-skill we just trimmed away.
+- **Small plan** (about 5 or fewer Approach steps, one module): `/implement-plan` works straight from PLAN.md, logging progress in `IMPLEMENTATION.md`.
+- **Anything bigger:** `/task-writer` turns PLAN.md into `docs/issues/<branch-name>/TASKS.md`, then `/next` works through it one task at a time.
+
+Do not invoke `/implement-plan`, `/task-writer` or `/next` from inside this skill. Each downstream skill owns its own quality gate; chaining them here would recreate the mega-skill we just trimmed away.
 
 ## Anti-patterns to avoid
 

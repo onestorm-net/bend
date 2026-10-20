@@ -13,9 +13,10 @@ complete-looking breakdown can still miss an acceptance criterion, a
 disconnect condition, or a spec change, and that miss travels all the way to
 the PR.
 
-There is deliberately **no right-size gate**. Every planned issue gets a
-TASKS.md because `/next` is the only execution path for planned work. A small
-plan produces a short TASKS.md, not no TASKS.md.
+There is deliberately **no right-size gate** inside this skill. Whether a plan
+needs a TASKS.md at all is decided before it runs: a small plan (about 5 or
+fewer Approach steps, one module) goes to `/implement-plan` instead. Once this
+skill runs, a small plan produces a short TASKS.md, not no TASKS.md.
 
 ## Phase 4: coverage gate
 
