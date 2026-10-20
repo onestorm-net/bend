@@ -21,7 +21,7 @@ reads.
 execution path for planned work in Bend, and it needs a task list to execute.
 A small plan just produces a short TASKS.md (often a single implementation task
 plus the final verification task); see
-[`references/task-sizing.md`](references/task-sizing.md).
+[`references/task-sizing.md`](/.claude/skills/task-writer/references/task-sizing.md).
 
 ## Core philosophy
 
@@ -34,11 +34,11 @@ the model holds a full module coherently and the reviewer reads commits, not
 tasks.
 
 For sizing rules, approval gates, and the decision matrix that drives
-splits, load [`references/task-sizing.md`](references/task-sizing.md).
+splits, load [`references/task-sizing.md`](/.claude/skills/task-writer/references/task-sizing.md).
 
 Rationale for the Phase 4 coverage gate (sycophancy guards, scope-creep
 handling) lives in
-[`references/quality-gates.md`](references/quality-gates.md).
+[`references/quality-gates.md`](/.claude/skills/task-writer/references/quality-gates.md).
 
 ## Phase 1: Build extraction inventory
 
@@ -47,7 +47,7 @@ into a category checklist. The full category list (packet/codec changes, spec
 changes, public API types and Javadoc, pipeline wiring, disconnect conditions
 and `ProtocolException` paths, threading/lifecycle, test plans) and the "what
 fits where" table live in
-[`references/extraction-workflow.md`](references/extraction-workflow.md).
+[`references/extraction-workflow.md`](/.claude/skills/task-writer/references/extraction-workflow.md).
 Load it the moment you start the inventory.
 
 Output the inventory verbatim to the developer with every line filled in.
@@ -77,15 +77,15 @@ implementation drifting apart between tasks is exactly the drift the
 2026-09-16 audit had to clean up.
 
 Write the tasks using the literal format in
-[`references/tasks-template.md`](references/tasks-template.md). The
+[`references/tasks-template.md`](/.claude/skills/task-writer/references/tasks-template.md). The
 template is the contract: `/next` parses the section names, so don't rename
 or omit them.
 
 For sizing decisions (when to split, when to bundle), load
-[`references/task-sizing.md`](references/task-sizing.md). For
+[`references/task-sizing.md`](/.claude/skills/task-writer/references/task-sizing.md). For
 pre-completion verification specifics (what to put in the "Verify before
 complete" block), load
-[`references/verification.md`](references/verification.md).
+[`references/verification.md`](/.claude/skills/task-writer/references/verification.md).
 
 ## Phase 3: Verify complete coverage
 
@@ -106,12 +106,12 @@ If any row is unchecked, you're not done. Don't punt to "the reviewer will
 catch it"; a clean self-check makes later review re-confirmation, not
 discovery. The full self-check (structure, context completeness,
 verification quality, AC coverage, plan coverage) lives in
-[`references/verification.md`](references/verification.md).
+[`references/verification.md`](/.claude/skills/task-writer/references/verification.md).
 
 ## Phase 4: Coverage self-gate (mandatory, fail-closed)
 
 **Before showing TASKS.md to the developer**, walk the coverage checklist in
-[`references/verification.md`](references/verification.md) § *Self-check before
+[`references/verification.md`](/.claude/skills/task-writer/references/verification.md) § *Self-check before
 finalising TASKS.md*. Every row must pass. A missed acceptance criterion is the
 one failure that propagates all the way to the PR, so this gate is fail-closed:
 fix gaps and re-walk rather than noting them and moving on.
@@ -163,7 +163,7 @@ skill owns its own quality gate; review runs once per branch via
 Write `TASKS.md` into the branch's planning folder, `docs/issues/<branch-name>/`, alongside
 `PLAN.md` and `DECISIONS.md`. The folder name is the exact branch name (e.g.
 `docs/issues/BD-0012-namespaced-id/`); resolve it with
-[`.claude/references/plan-directory.md`](../../references/plan-directory.md).
+[`.claude/references/plan-directory.md`](/.claude/references/plan-directory.md).
 
 **If that finds nothing** (a plan written ad hoc, with no tracked issue or branch yet): create a
 Kendo issue in project 1 via `/kendo` (follow its issue template rather than improvising one),
@@ -175,7 +175,7 @@ then create the branch `BD-NNNN-<kebab-slug>` with `/newbranch` and use
 ```markdown
 # BD-NNNN: Short Description
 
-> Plan: [PLAN.md](PLAN.md) | Decisions: [DECISIONS.md](DECISIONS.md)
+> Plan: [PLAN.md](/docs/issues/BD-NNNN-<slug>/PLAN.md) | Decisions: [DECISIONS.md](/docs/issues/BD-NNNN-<slug>/DECISIONS.md)
 ```
 
 ## Worked example
@@ -183,5 +183,5 @@ then create the branch `BD-NNNN-<kebab-slug>` with `/newbranch` and use
 A `client-api` feature (the `NamespacedId` value type) showing the task format
 with TDD ordering, exact Gradle commands, the final verification task, and
 completion metadata lives in
-[`references/example-client-api-feature.md`](references/example-client-api-feature.md).
+[`references/example-client-api-feature.md`](/.claude/skills/task-writer/references/example-client-api-feature.md).
 Reference it when you need a concrete output to model your TASKS.md against.

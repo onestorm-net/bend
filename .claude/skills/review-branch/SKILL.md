@@ -17,7 +17,7 @@ session's report when its `Reviewed against commit:` sha matches HEAD.
 ## The lanes
 
 Every finder answers exactly one question and carries its own sections of the hunting corpus
-in [`references/corpus/`](references/corpus/_preamble.md). All three run **always**, on every
+in [`references/corpus/`](/.claude/skills/review-branch/references/corpus/_preamble.md). All three run **always**, on every
 branch: plan or no plan, feature or bug. None of them scores, ranks, or applies a waiver.
 They return tagged findings and a `checked` list. This skill synthesizes those reports in
 chat. The parent session sees them and decides what to do.
@@ -29,11 +29,11 @@ chat. The parent session sees them and decides what to do.
   never take?* Runtime-state simulation, Sins of omission, Test disciplines (diff-gated on
   test files), plus the correctness lane focus.
 - **`precedent-reviewer`**: *Does this match what's already written down?* Recorded rulings
-  (`CLAUDE.md`, `protocol/protocol-v1.md`), Sibling precedent.
+  (`CLAUDE.md`, the ADRs in `docs/decisions/`, `protocol/protocol-v1.md`), Sibling precedent.
 
 The finder contract every lane follows (context, Bend's hazards and accepted failures, the
 finding shape, the three tags, method, voice) is
-[`references/finder-base.md`](references/finder-base.md).
+[`references/finder-base.md`](/.claude/skills/review-branch/references/finder-base.md).
 
 User-facing text a branch ships (`protocol-v1.md`, README, Javadoc on `protocol` /
 `client-api`, skill docs) has no reviewer of its own. `correctness-reviewer`'s

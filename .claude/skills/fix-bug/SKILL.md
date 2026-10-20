@@ -81,7 +81,7 @@ knowing what the code is supposed to do.
 Before picking a path, validate the issue's *Expected behaviour* / *Steps to
 reproduce* section against the code and the spec. The validation rules and
 the contradiction-surfacing prompt live in
-[references/repro-paths.md](references/repro-paths.md). Only after the
+[references/repro-paths.md](/.claude/skills/fix-bug/references/repro-paths.md). Only after the
 developer confirms the canonical model do you pick a path.
 
 Every fix needs **something executable that demonstrates the defect**. That's
@@ -96,7 +96,7 @@ what Phase 8's verifier checks against.
 
 Path details (when each applies, what to write into BUG.md's "Reproduction
 Steps", and the "cannot reproduce" stop condition) live in
-[references/repro-paths.md](references/repro-paths.md). Load that file once
+[references/repro-paths.md](/.claude/skills/fix-bug/references/repro-paths.md). Load that file once
 you've picked the path.
 
 ## Phase 4: Check if already fixed on development
@@ -126,7 +126,7 @@ writing a `BUG.md` beside it makes the branch ambiguous to `/review-branch`
 and `/pr`.
 
 Write `BUG.md` using the template at
-[references/bug-md-template.md](references/bug-md-template.md). Fill
+[references/bug-md-template.md](/.claude/skills/fix-bug/references/bug-md-template.md). Fill
 **Problem** and **Reproduction Steps** now from your Phase 3 work; leave
 **Root Cause**, **Chosen Approach**, **Fix**, and **Verification** empty.
 They get filled as you progress. Set Status: `Investigating`.
@@ -139,7 +139,7 @@ tagged debug instrumentation. The gate exists to catch a wrong diagnosis or a
 wrong choice of fix before the diff starts growing.
 
 The mechanics live in
-[references/diagnose-and-propose.md](references/diagnose-and-propose.md):
+[references/diagnose-and-propose.md](/.claude/skills/fix-bug/references/diagnose-and-propose.md):
 
 - **Generate hypotheses** (3-5 ranked, falsifiable). **Skip for path 3b.**
 - **Pin down root cause** and write 2-4 sentences into BUG.md, citing
@@ -305,9 +305,10 @@ before a readable check), surface it via `AskUserQuestion`:
 If "yes," file it as a Kendo issue with the specific pointer, or hand it to
 `/plan-feature`. A concrete starting point beats "improve something."
 
-Also ask whether the bug's lesson belongs in `CLAUDE.md` (a new ruling, or a
-history entry beside the existing frame-decoder ones). That file is where
-Bend records why things are built the way they are.
+Also ask whether the bug's lesson is a lasting rule. If it is, record the
+reasoning in the branch's `DECISIONS.md` (or update the ADR it changes, under
+`docs/decisions/`) and add a one-line rule to the matching `CLAUDE.md`, root or
+module. That is where Bend records why things are built the way they are.
 
 **Skip this phase entirely for path 3b mechanical fixes** (typos,
 off-by-ones, missing null checks). Asking after every trivial fix turns the

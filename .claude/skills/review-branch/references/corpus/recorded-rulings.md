@@ -3,18 +3,23 @@
 The repository's front door records rulings: decisions already made, with the reasoning behind
 them and, often, the alternative that was considered and declined. The front door is
 authoritative over Javadoc, code comments, and the diff's own account of itself. Bend's front
-door is two files:
+door is:
 
-- `CLAUDE.md` at the repo root: design decisions and their history ("Frame decoder", "Protocol
-  architecture", "Testing / coverage", "Module naming convention", "API design decisions",
-  "Module set", and the rest)
+- `CLAUDE.md` at the repo root and in each module folder: the standing rules, one line each
+  ("Protocol architecture", "API design decisions", "Testing / coverage", "Module naming
+  convention", "Module set", and the rest), each linking its ADR
+- `docs/decisions/`: the ADRs. An `Accepted` ADR's Decision section is the ruling; its Context
+  carries the history and its Rejected section the alternatives considered and declined. A
+  `Deferred` or `Open` ADR binds nothing and is not a ruling home. `README.md` explains the
+  statuses
 - `protocol/protocol-v1.md`: the wire spec. Its MUST / MUST NOT rules, disconnect conditions,
   field layouts, and constants are rulings of the same weight
 
-Open both, in full. The front door's rulings are the authoritative list of standing rules; do
-not work from memory of which rules exist. A file either of them merely links (a skill, a
-README) is not a ruling home. In `checked`, name the two files and the headings you checked
-against.
+Open the `CLAUDE.md` files and the spec in full, and the ADRs whose subject the diff touches.
+The front door's rulings are the authoritative list of standing rules; do not work from memory
+of which rules exist. A file any of them merely links (a skill, a README outside
+`docs/decisions/`) is not a ruling home. In `checked`, name the files, ADRs and headings you
+checked against.
 
 ## Standing rulings to know before you start
 
@@ -28,7 +33,7 @@ set: the front door is.
   test (reflection, an impossible hand-built state) to turn one green, contradicts this.
 - **`ProtocolException` for wire input, IAE/ISE for caller misuse.** Every malformed or
   oversized-input throw site in `protocol` uses `ProtocolException` (one flat class, stack
-  trace skipped unless `setDebugStackTraces(true)`). Setup-time misuse
+  trace skipped unless `setDebugStackTraces(true)`, ADR 0011). Setup-time misuse
   (`AbstractProtocol.getPacketId` for an unregistered class, `registerPacket` with an
   out-of-range id) stays `IllegalArgumentException` on purpose.
 - **No `io.netty.buffer.ByteBuf` (or any Netty type) in `client-api` or the future
@@ -56,8 +61,8 @@ set: the front door is.
 ## The three shapes
 
 List each ruling that names a behaviour this diff changes, then check the diff against it.
-Cite the ruling by its file and heading (e.g. `CLAUDE.md` › API design decisions, or
-`protocol-v1.md` › Frame). Three shapes:
+Cite the ruling by its file and heading or ADR number (e.g. `CLAUDE.md` › API design
+decisions, ADR 0012, or `protocol-v1.md` › Frame). Three shapes:
 
 - **The diff changes code against a ruling it does not touch.** The recorded rule stands
   and the change now contradicts it. File it: `introduced`, and `confirmed` when the
@@ -71,7 +76,8 @@ Cite the ruling by its file and heading (e.g. `CLAUDE.md` › API design decisio
 - **The diff rewrites a ruling and the code together, consistently.** A rule change is
   allowed, and never silent. File the reversal with `confidence: unconfirmed` and a
   `proof_gap` naming what would authorize it (a `docs/issues/<branch-name>/DECISIONS.md` entry
-  naming the reversal, or the `CLAUDE.md` entry recording the new decision and why). State the
+  naming the reversal, or the updated ADR recording the new decision and why, with the old
+  option moved to its Rejected section). State the
   old rule, the new rule, and that ruling text, code, and tests moved together.
 
 A disagreement this diff touched on neither side is ordinary `pre_existing` territory, not

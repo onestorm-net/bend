@@ -18,7 +18,7 @@ everything goes through MCP.
 
 ## Setup
 
-The server is already configured as `kendo`. See [references/setup.md](references/setup.md) only
+The server is already configured as `kendo`. See [references/setup.md](/.claude/skills/kendo/references/setup.md) only
 if the tools are missing or auth has expired.
 
 ## Bend project facts
@@ -98,7 +98,7 @@ none, or more than one, is refused.
 | `mcp__kendo__untick-epic-wish-tool` | Untick one Done when wish; clears who and when |
 
 An issue joins an epic via `epic_id` on create/update. Don't create an epic with nothing to
-attach to it (CLAUDE.md records why there is no `Protocol` epic).
+attach to it (ADR 0023 records why there is no `Protocol` epic).
 
 ### Sprints
 
@@ -138,7 +138,7 @@ attach to it (CLAUDE.md records why there is no `Protocol` epic).
 
 ### Create Issue
 
-Write the description with [references/issue-templates.md](references/issue-templates.md).
+Write the description with [references/issue-templates.md](/.claude/skills/kendo/references/issue-templates.md).
 
 ```
 project_id: 1
@@ -196,7 +196,7 @@ ordered lists of at most 100 items of at most 500 characters:
   `tick-epic-wish-tool`, and can link issues of the same epic (`issue_ids`).
 - **What done looks like** (`checks`): plain-text lines to verify the work against, in the same
   `Proof: …` shape as an issue's section (see
-  [issue-templates.md](references/issue-templates.md#what-done-looks-like)). Never ticked.
+  [issue-templates.md](/.claude/skills/kendo/references/issue-templates.md#what-done-looks-like)). Never ticked.
 
 **Status is derived** (0=Open / 1=Closed); no tool sets it. An epic with wishes is Closed once
 every wish is ticked, even with issues still open. Without wishes, it is Closed when it has
@@ -281,5 +281,5 @@ search-issues-tool  project_id: 1, epic_ids: [3], exclude_lane_ids: [4], include
 
 | File | Content |
 |------|---------|
-| [setup.md](references/setup.md) | What to check if the `kendo` MCP server is missing or unauthenticated |
-| [issue-templates.md](references/issue-templates.md) | Issue templates (feature, bug, task) with Bend examples. Single source of truth, used by `/newbranch`, `/plan-feature`, `/task-writer` and any skill that creates issues |
+| [setup.md](/.claude/skills/kendo/references/setup.md) | What to check if the `kendo` MCP server is missing or unauthenticated |
+| [issue-templates.md](/.claude/skills/kendo/references/issue-templates.md) | Issue templates (feature, bug, task) with Bend examples. Single source of truth, used by `/newbranch`, `/plan-feature`, `/task-writer` and any skill that creates issues |

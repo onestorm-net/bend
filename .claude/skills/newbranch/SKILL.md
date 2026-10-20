@@ -33,7 +33,7 @@ Ask the user which issue to branch from. Options:
   `mcp__kendo__prepare-issue-context-tool` and read its `key` field.
 - **User provides a search query**: `mcp__kendo__search-issues-tool` with `project_id: 1`.
 - **User wants a new issue**: create one with `mcp__kendo__create-issue-tool`, `project_id: 1`,
-  following [`../kendo/references/issue-templates.md`](../kendo/references/issue-templates.md)
+  following [`../kendo/references/issue-templates.md`](/.claude/skills/kendo/references/issue-templates.md)
   (feature, bug and task shapes for this project). Don't improvise a structure: future searches
   of the backlog rely on it being consistent.
 
@@ -75,7 +75,7 @@ Branch naming rules:
 - No slashes. After the uppercase key, only lowercase letters, numbers and hyphens.
 
 The branch name is also the planning folder name: `docs/issues/<branch-name>/` (see
-[`.claude/references/plan-directory.md`](../../references/plan-directory.md)).
+[`.claude/references/plan-directory.md`](/.claude/references/plan-directory.md)).
 
 ## Step 4: Start work on the issue
 

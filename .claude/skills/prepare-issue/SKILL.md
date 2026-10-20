@@ -130,7 +130,7 @@ After `/newbranch` completes, note the **branch name** it created.
 ## Step 4: Planning folder hint
 
 The branch name is also the planning folder: `docs/issues/<branch-name>/` (see
-[`.claude/references/plan-directory.md`](../../references/plan-directory.md)). Don't create it
+[`.claude/references/plan-directory.md`](/.claude/references/plan-directory.md)). Don't create it
 here; `/plan-feature` or `/fix-bug` does.
 
 ## Step 5: Confirm

@@ -1,1 +1,1 @@
-// Empty skeleton — server work has not started yet. See CLAUDE.md "Status".
+// Rules for this module: see server-netty/CLAUDE.md.

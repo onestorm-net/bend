@@ -5,7 +5,7 @@ build/
 
 ### Claude Code ###
 .claude/settings.local.json
-CLAUDE.md
+.claude/local-references.md
 
 ### IntelliJ IDEA ###
 .idea/

@@ -259,8 +259,8 @@ As an API consumer, I want the client to tell the server which endpoints I have 
 that the server only routes messages I can handle.
 
 ## Context
-Implements the Supported Endpoints flow in protocol-v1.md. CLAUDE.md "In-flight work (client)"
-decided to resend the whole set (not a delta) on each trigger.
+Implements the Supported Endpoints flow in protocol-v1.md. ADR 0019 decided to resend the whole
+set (not a delta) on each trigger.
 
 ## Acceptance Criteria
 1. After an `Available Endpoints` packet arrives, the client sends one `Supported Endpoints`
@@ -311,7 +311,7 @@ decoder's `catch (Exception e)` does not catch.
 - array-length readers in `ProtocolUtil` and `AvailableEndpointsPacket`
 
 **Out:**
-- requiring canonical VarInt encoding (declined, see CLAUDE.md)
+- requiring canonical VarInt encoding (declined, see ADR 0003)
 
 ## What done looks like
 - `./gradlew :bend-protocol:test --tests 'net.onestorm.bend.protocol.util.ProtocolUtilTest' --rerun`

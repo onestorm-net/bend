@@ -43,7 +43,7 @@ Group related changes into small, focused commits. Each commit should be a singl
 - **`.claude/`** and **`CLAUDE.md`** changes separate from code
 
 **Keep the plan in step.** Resolve the branch's directory with
-[`.claude/references/plan-directory.md`](../../references/plan-directory.md)
+[`.claude/references/plan-directory.md`](/.claude/references/plan-directory.md)
 (`docs/issues/<branch-name>/`). When one exists and a commit's diff changes behaviour that
 `PLAN.md`'s Approach or Scope, or a `DECISIONS.md` entry, describes, patch those files **in that
 same commit**, before `git commit`, not later. Tests and renames leave the plan alone. A plan that

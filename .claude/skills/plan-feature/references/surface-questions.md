@@ -9,7 +9,7 @@ This is the **single source of truth** for the seven row questions that:
 
 The rows are deliberately **question-shaped, not field-shaped**. Filling in a form trains for the past; answering a question generalises to the next feature. Worked examples below each row show what a strong answer reads like; they are illustrative, not templates.
 
-For the rationale and sycophancy guards, see [`quality-gates.md`](quality-gates.md) § Phase 1.6.
+For the rationale and sycophancy guards, see [`quality-gates.md`](/.claude/skills/plan-feature/references/quality-gates.md) § Phase 1.6.
 
 ---
 
@@ -87,7 +87,7 @@ Questions:
 - Which MUST, MUST NOT, SHOULD and disconnect rules in `protocol-v1.md` does this feature implement or touch? Quote them by section.
 - For each rule: is it enforced on **both** sides that the spec binds (the server-side Disconnect conditions and the Client-side disconnect conditions are separate lists), and where in the code?
 - Does the feature change the wire format or a rule? Then name the exact `protocol-v1.md` edit (section and new text), whether the change is backwards-compatible with a peer on the current spec, and whether it needs a protocol version bump in `Handshake`.
-- Does the plan add a check that the current code cannot reach? Bend's rule (CLAUDE.md § Testing): an unreachable "defensive" check is deleted, not kept. Show the input that reaches it, or drop it.
+- Does the plan add a check that the current code cannot reach? Bend's rule (CLAUDE.md § Testing / coverage, ADR 0009): an unreachable "defensive" check is deleted, not kept. Show the input that reaches it, or drop it.
 - Conversely, does the plan rely on a property the spec leaves open (canonical VarInt encoding, which side sends first after an update) without writing it down?
 
 *Strong answer:* "Implements protocol-v1.md § Endpoint list updates: 'Before sending the updated list, the sender MUST stop sending `Endpoint Message`s on any removed endpoints.' Server side: `EndpointRegistry#unregister` removes the id from the outbound send set before `AvailableEndpointsPacket` is written (same event-loop task). Client side is out of scope (BD-0015). No wire change, no spec edit, no version bump. Proof: `ServerEndpointRegistryTest#unregister_thenSend_rejectsBeforeListIsWritten`."
@@ -104,7 +104,7 @@ Questions:
 - Does any module gain a dependency? `client-api` depends on nothing; implementation modules may depend on their api module and `protocol`. Name the `build.gradle.kts` change, or confirm there is none.
 - Does the API keep the two send paths separate: built-in packets written internally, user payloads through the public, registration-checked path?
 - What does a caller get wrong most easily with this API (calling before connect, after close, registering twice, mutating a buffer after `send`), and is that an `IllegalStateException` / `IllegalArgumentException` at the call, or silent misbehaviour?
-- Every new public type in `client-api` (and `protocol`, where it is treated as public) needs Javadoc; name the types.
+- Every new public type in `client-api` (and `server-api`, once it exists) needs Javadoc; name the types.
 - For each new structural rule the plan introduces ("every packet validates on decode", "no handler blocks", "every array reader calls `validateArrayLength`"), what enforces it? Bend has no linter or architecture tests, so the ladder is:
   - **L1**: compile time (module dependency absent from `build.gradle.kts` so the import cannot compile, a `final` or sealed type, a method signature that cannot accept the wrong thing)
   - **L2**: a test that fails when the rule is broken (name it)

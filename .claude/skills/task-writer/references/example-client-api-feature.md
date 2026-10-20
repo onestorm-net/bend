@@ -27,7 +27,7 @@ PLAN.md acceptance criteria:
 ```markdown
 # BD-0012: NamespacedId value type in client-api
 
-> Plan: [PLAN.md](PLAN.md) | Decisions: [DECISIONS.md](DECISIONS.md)
+> Plan: [PLAN.md](/docs/issues/BD-0012-namespaced-id/PLAN.md) | Decisions: [DECISIONS.md](/docs/issues/BD-0012-namespaced-id/DECISIONS.md)
 
 ### Phase 1: NamespacedId (2 tasks)
 
