@@ -1,31 +1,34 @@
 ---
 name: newbranch
 description: >
-  Create a new branch from origin/main for a Kendo issue: resolve or create the BD issue first,
+  Create a new branch from origin/development for a Kendo issue: resolve or create the BD issue first,
   then create the branch locally and prepare the issue for work (assign, add to the active
-  sprint, move to In Progress, link the branch). Never pushes. Use whenever the user wants to
-  start a new feature, create a branch, begin work on an issue, or says "new branch".
+  sprint, move to In Progress, link the branch). Also creates keyless `<type>/<slug>` branches
+  for small changes that need no issue. Never pushes. Use whenever the user wants to start a new
+  feature, create a branch, begin work on an issue, or says "new branch".
 ---
 
 # New Branch
 
-Create a new git branch from `origin/main` and prepare the linked Kendo issue for work (assign to
+Create a new git branch from `origin/development` and prepare the linked Kendo issue for work (assign to
 the developer, add to the active sprint, move to In Progress, link the branch).
 
-Bend facts this skill relies on: integration branch `main`; Kendo project `project_id: 1` via the
+Bend facts this skill relies on: integration branch `development`; Kendo project `project_id: 1` via the
 local `kendo` MCP server (`mcp__kendo__*` tools only); lane In Progress = `2`; sole user id `1`;
 issue keys `BD-NNNN` (4-digit).
 
 ## Step 1: Fetch latest
 
 ```bash
-git fetch origin main
+git fetch origin development
 ```
 
 ## Step 2: Find or create the issue
 
 Ask the user which issue to branch from. Options:
 
+- **User says the change needs no issue**: a keyless branch, see
+  [Keyless branches](#keyless-branches). Skip the rest of this skill.
 - **User provides an issue number or key** (`BD-0012`, `12`): resolve it with
   `mcp__kendo__prepare-issue-context-tool` and read its `key` field.
 - **User provides a search query**: `mcp__kendo__search-issues-tool` with `project_id: 1`.
@@ -55,12 +58,12 @@ has no Active sprint (skip sprint then). Lane and assignee are fixed (In Progres
 Use the issue `key` plus a kebab-case summary of the title (max ~5 words):
 
 ```bash
-git checkout -b <issue-key>-short-description --no-track origin/main
+git checkout -b <issue-key>-short-description --no-track origin/development
 ```
 
 **Why `--no-track`:** Git's default `autosetupmerge=always` makes the new local branch inherit
-`origin/main` as its upstream. Without `--no-track`, a later bare `git push` would push straight
-to `main` and bypass PR review. `--no-track` breaks that link; `/pr` later sets the branch's own
+`origin/development` as its upstream. Without `--no-track`, a later bare `git push` would push straight
+to `development` and bypass PR review. `--no-track` breaks that link; `/pr` later sets the branch's own
 upstream with `git push -u origin HEAD`.
 
 **Do not push.** Only `/pr` pushes.
@@ -100,3 +103,23 @@ Tell the user in one concise block:
 - The issue key + title
 - The active sprint it was added to (or "no active sprint, skipped")
 - That the issue is assigned and now In Progress, with the branch linked
+
+## Keyless branches
+
+A small change that nobody would look for later in the tracker gets no issue: a typo, a README
+command, a dependency bump, a one-line build fix. The test: it fits one small PR, needs no
+design decision, and its PR body needs no "why" paragraph. If it does, file an issue instead.
+
+```bash
+git checkout -b <type>/<kebab-slug> --no-track origin/development
+```
+
+- `<type>` is the commit type the branch's commits will carry: `feat`, `fix`, `refactor`,
+  `test`, `docs`, `chore` or `build` (see `/commit`). So `fix/frame-decoder-typo`,
+  `docs/readme-gradle-command`, `chore/bump-netty`, never always `fix/`.
+- Same slug rules as issue branches: lowercase letters, numbers and hyphens, ~5 words.
+- No Kendo calls, no planning directory. `/commit` drops the ` (BD-NNNN)` suffix and `/pr`
+  skips the Kendo step.
+- Branches made by a bot keep the bot's own namespace (`dependabot/...`); don't rename them.
+
+Confirm the branch name (local only, not pushed) and that no issue was touched.

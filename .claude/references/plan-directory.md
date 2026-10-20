@@ -16,7 +16,9 @@ skills (`plan-feature`, `fix-bug`, `task-writer`) mint, so writers and readers c
 
 ## Algorithm
 
-1. Run `git branch --show-current` to get the branch name.
+1. Run `git branch --show-current` to get the branch name. A keyless `<type>/<slug>` branch
+   (`fix/frame-decoder-typo`, see `newbranch` Step 2) has no planning directory by design:
+   treat it as "no directory found" and stop here, without asking.
 2. Look for `docs/issues/<branch-name>/`.
 3. If that directory does not exist, extract the leading issue key (`BD-\d{4}`, e.g. `BD-0007`)
    from the branch and search `docs/issues/` for directories whose name starts with it. If
@@ -47,7 +49,8 @@ the richer artifact.
 | `BD-0007-claude-skills` | `BD-0007-claude-skills/` | `docs/issues/BD-0007-claude-skills/` (step 2) |
 | `BD-0012-endpoint-registry` | only `BD-0012-endpoint-registry-dispatch/` | `docs/issues/BD-0012-endpoint-registry-dispatch/` (step 3 prefix match) |
 | `BD-0015-keepalive` | `BD-0015-keepalive-timeout/` and `BD-0015-keepalive-echo/` | step 4: two prefix matches, neither is picked |
-| `main` | (anything) | step 4: no issue key to match |
+| `development` or `main` | (anything) | step 4: no issue key to match |
+| `docs/readme-gradle-command` | (anything) | no directory (step 1: keyless branch) |
 
 ## Skill-specific fallbacks
 

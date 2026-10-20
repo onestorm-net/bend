@@ -15,7 +15,7 @@ Task preparation assistant. Argument: `$issue` (required).
 
 Bend facts this skill relies on: Kendo project `project_id: 1` on the local `kendo` MCP server
 (`mcp__kendo__*` tools only; there is no Kendo CLI); lane In Progress = `2`; sole user id `1`;
-issue keys `BD-NNNN` (4-digit); branches `BD-NNNN-<kebab-slug>` from `origin/main`.
+issue keys `BD-NNNN` (4-digit); branches `BD-NNNN-<kebab-slug>` from `origin/development`.
 
 - `$issue` accepts three forms:
   - **Issue key** (e.g. `BD-0012`): used verbatim.
@@ -120,8 +120,8 @@ short-circuit), so it's safe to run even when most of the state is already corre
 ### 3B. New branch via /newbranch
 
 Invoke `/newbranch` with the issue key (e.g. `BD-0012`) as argument. It handles:
-- Fetching `origin/main`
-- Creating `BD-NNNN-<slug>` from `origin/main` with `--no-track` (no push)
+- Fetching `origin/development`
+- Creating `BD-NNNN-<slug>` from `origin/development` with `--no-track` (no push)
 - Calling `start-work-on-issue-tool` to assign, move to In Progress, add to the active sprint,
   and link the branch
 
@@ -140,7 +140,7 @@ Print a summary:
 ```
 Issue #{issue_id} ({key}) prepared!
   [x] Assigned to user 1
-  [x] Branch: {branch_name} (from origin/main, not pushed)
+  [x] Branch: {branch_name} (from origin/development, not pushed)
   [x] Branch linked to issue
   [x] Added to sprint {sprint}          ← only if there is an active sprint
   [x] Moved to In Progress

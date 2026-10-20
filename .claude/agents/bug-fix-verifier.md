@@ -123,11 +123,11 @@ thing keeping "obvious" fixes honest.
 
 ### Step 3: Glance at touched files for obvious regressions
 
-Run `git diff origin/main...HEAD --stat` to see all changed files (`main` is
-Bend's integration branch; use `main...HEAD` if the remote ref is missing),
+Run `git diff origin/development...HEAD --stat` to see all changed files (`development` is
+Bend's integration branch; use `development...HEAD` if the remote ref is missing),
 then for each touched file:
 
-1. Read the diff (`git diff origin/main...HEAD -- <path>`).
+1. Read the diff (`git diff origin/development...HEAD -- <path>`).
 2. Look for:
    - **Adjacent behaviour changes** the Fix section doesn't mention, e.g.
      BUG.md says "reject a zero-length frame" but the diff also changes how

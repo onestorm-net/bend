@@ -15,8 +15,9 @@ Create small, focused commits with proper messages. This skill does not push; `/
 
 ### 1. Branch safety check
 
-Run `git branch --show-current`. If it is `main`, **warn the user** and suggest creating a
-feature branch first (`/newbranch`). Only proceed with committing once on a `BD-NNNN-...` branch.
+Run `git branch --show-current`. If it is `main` or `development`, **warn the user** and suggest creating a
+feature branch first (`/newbranch`). Only proceed with committing once on an issue branch
+(`BD-NNNN-<slug>`) or a keyless branch (`<type>/<slug>`, e.g. `fix/frame-decoder-typo`).
 
 ### 2. Gather context
 
@@ -26,7 +27,8 @@ Run in parallel:
 - `git log --oneline -10`, to see recent messages on this branch
 
 Extract the issue key (`BD-\d{4}`) from the branch name; every commit message on this branch
-carries it.
+carries it. A keyless `<type>/<slug>` branch has no key: its messages drop the ` (BD-NNNN)`
+suffix, and nothing else changes.
 
 ### 3. Plan small commits
 
@@ -77,7 +79,8 @@ EOF
      under 72 characters including the `(BD-NNNN)` suffix.
    - Examples: `feat(client-api): add NamespacedId (BD-0001)`,
      `fix(protocol): reject zero-length frames (BD-0009)`,
-     `chore(claude): adapt skills for Bend (BD-0007)`.
+     `chore(claude): adapt skills for Bend (BD-0007)`, and on a keyless branch
+     `docs(docs): fix the Gradle command in the README`.
    - Always end with the `Co-Authored-By` trailer line above.
 
 c. Repeat for each logical group of changes.

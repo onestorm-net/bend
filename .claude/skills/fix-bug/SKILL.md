@@ -2,7 +2,7 @@
 name: fix-bug
 description: |
   Structured bug-fix workflow: identify the issue, reproduce the defect,
-  confirm it isn't already fixed on main, capture the investigation in
+  confirm it isn't already fixed on development, capture the investigation in
   docs/issues/<branch-name>/BUG.md, propose the fix and wait for developer
   approval, implement it, and gate on the bug-fix-verifier agent (with
   runtime-integrity-reviewer alongside) before PR. Use whenever the user wants
@@ -53,15 +53,15 @@ Note any existing **branch links**: a branch may already exist.
 
 ## Phase 2: Branch guard
 
-`<base>` is `main`, Bend's integration branch. Every later phase compares
-against `origin/main` (or local `main` when the remote ref is missing).
+`<base>` is `development`, Bend's integration branch. Every later phase compares
+against `origin/development` (or local `development` when the remote ref is missing).
 
 This skill does **not** create branches. That's `/prepare-issue`'s job (or
 `/newbranch` for work without an issue).
 
 | Branch state | Action |
 |---|---|
-| On `main` | Stop. Tell the user to run `/prepare-issue <KEY>` or `/newbranch`. |
+| On `development` or `main` | Stop. Tell the user to run `/prepare-issue <KEY>` or `/newbranch`. |
 | Branch name is `BD-NNNN-<slug>` with this issue's key | Proceed. |
 | Any other branch | Stop. Ask if this is the right branch; if not, point at `/prepare-issue` or `/newbranch`. |
 
@@ -99,20 +99,20 @@ Steps", and the "cannot reproduce" stop condition) live in
 [references/repro-paths.md](references/repro-paths.md). Load that file once
 you've picked the path.
 
-## Phase 4: Check if already fixed on main
+## Phase 4: Check if already fixed on development
 
-Before writing a fix, verify the bug still exists on `main`. Your branch may
+Before writing a fix, verify the bug still exists on `development`. Your branch may
 have diverged and the fix may already have landed.
 
-- **Failing test (3a):** stash your test, `git fetch origin main`, check out
-  the file(s) under test from `origin/main` (`git checkout origin/main --
+- **Failing test (3a):** stash your test, `git fetch origin development`, check out
+  the file(s) under test from `origin/development` (`git checkout origin/development --
   <path>`), un-stash, run it with `--rerun`. Reset afterwards.
-- **Clear diagnosis (3b):** `git log origin/main -- <path>` for recent
-  fix-language commits. If line numbers / typos already differ on `main`, read
+- **Clear diagnosis (3b):** `git log origin/development -- <path>` for recent
+  fix-language commits. If line numbers / typos already differ on `development`, read
   the diff and confirm.
 
-If the bug doesn't reproduce on `main`, stop. Tell the user which commit
-appears to have fixed it and suggest merging `main` in instead of writing a
+If the bug doesn't reproduce on `development`, stop. Tell the user which commit
+appears to have fixed it and suggest merging `development` in instead of writing a
 duplicate fix.
 
 ## Phase 5: Create docs/issues/<branch-name>/BUG.md
@@ -161,7 +161,7 @@ confirm via `AskUserQuestion`:
 
 > Diagnosis suggests this isn't a bug: `<one-line reason, e.g. "protocol-v1.md
 > requires the disconnect, this is the spec working as designed" or
-> "duplicate of BD-0031, already fixed on main">`. Abandon this branch?
+> "duplicate of BD-0031, already fixed on development">`. Abandon this branch?
 > - **Yes, abandon**: update Status to `Abandoned`, note why in Notes /
 >   Follow-ups, and stop the workflow. Do not proceed to Phase 7 or `/pr`.
 > - **No, the diagnosis is wrong / keep investigating**: stay in Phase 6,
@@ -237,7 +237,7 @@ Agent({
 
 Skill dir: <review-branch skill dir>
 Plan directory: docs/issues/<branch-name>/
-Diff base: origin/main
+Diff base: origin/development
 
 FIRST: read <skill dir>/references/finder-base.md, then your three corpus sections under
 <skill dir>/references/corpus/. Return ## Findings and ## Checked only, in the finder shape.

@@ -34,7 +34,16 @@ Claude Code skill catalog of Script Development. Many thanks to its authors.
 | Review the branch before a PR | `/review-branch` |
 | Commit (local only) | `/commit` |
 | Push and open the PR | `/pr` |
-| Merge `main` into the branch | `/catchup` |
+| Merge `development` into the branch | `/catchup` |
 | Talk to the Kendo tracker | `/kendo` |
+
+## Branches
+
+- `main` is stable and only moves through a release PR from `development` (merge commit; tags
+  go on `main`).
+- `development` is the integration branch and the GitHub default; every PR targets it.
+- Issue branches: `BD-NNNN-<slug>`, from `origin/development`.
+- Small changes with no issue: `<type>/<slug>`, where `<type>` is the commit type
+  (`fix/frame-decoder-typo`, `docs/readme-gradle-command`, `chore/bump-netty`). See `/newbranch`.
 
 `settings.local.json` holds per-user permissions and is not tracked.

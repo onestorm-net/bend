@@ -1,7 +1,7 @@
 ---
 name: review-branch
 description: >
-  Full-branch review of the current branch vs main. Spawns `runtime-integrity-reviewer`,
+  Full-branch review of the current branch vs development. Spawns `runtime-integrity-reviewer`,
   `correctness-reviewer` and `precedent-reviewer` in parallel and reports in chat for `/pr` to
   consume in this session. Use whenever the user wants to review a branch, says "review my
   changes", "review branch", "check my code", "what did I change", "write the handoff", "branch
@@ -48,14 +48,14 @@ touches.
 
 ## Step 1: Gather branch context
 
-The integration branch is `main`. Run these in parallel:
+The integration branch is `development`. Run these in parallel:
 
 - `git branch --show-current`
 - `git status --short`
 - `git rev-parse --short HEAD`
-- `git diff --stat origin/main...HEAD`
+- `git diff --stat origin/development...HEAD`
 
-If `origin/main` is unavailable, fall back to `main...HEAD` and note that in the chat report.
+If `origin/development` is unavailable, fall back to `development...HEAD` and note that in the chat report.
 You do not need to pull the full diff into this context: each finder takes its own diff.
 Pulling it here only burns the orchestrator's window.
 
@@ -99,7 +99,7 @@ Agent({
 
 Skill dir: <skill dir resolved in Step 1>
 Plan directory: docs/issues/<branch-name>/   (or "none")
-Diff base: <origin/main, or main on fallback>
+Diff base: <origin/development, or development on fallback>
 
 FIRST: read <skill dir>/references/finder-base.md, then your three corpus sections under
 <skill dir>/references/corpus/. Return ## Findings and ## Checked only, in the finder shape.
@@ -112,7 +112,7 @@ Agent({
 
 Skill dir: <skill dir resolved in Step 1>
 Plan directory: docs/issues/<branch-name>/   (or "none")
-Diff base: <origin/main, or main on fallback>
+Diff base: <origin/development, or development on fallback>
 
 FIRST: read <skill dir>/references/finder-base.md, then your three corpus sections under
 <skill dir>/references/corpus/. Return ## Findings and ## Checked only, in the finder shape.
@@ -125,7 +125,7 @@ Agent({
 
 Skill dir: <skill dir resolved in Step 1>
 Plan directory: docs/issues/<branch-name>/   (or "none")
-Diff base: <origin/main, or main on fallback>
+Diff base: <origin/development, or development on fallback>
 
 FIRST: read <skill dir>/references/finder-base.md, then your two corpus sections under
 <skill dir>/references/corpus/. Return ## Findings and ## Checked only, in the finder shape.
@@ -150,7 +150,7 @@ the sha against HEAD:
 ## Metadata
 - Reviewer: Claude
 - Branch: `<branch-name>`
-- Base diff: `origin/main...HEAD`
+- Base diff: `origin/development...HEAD`
 - Reviewed against commit: `<short-sha>`
 - Work directory: `docs/issues/<branch-name>` (plan / bug), or none
 - Generated: YYYY-MM-DD

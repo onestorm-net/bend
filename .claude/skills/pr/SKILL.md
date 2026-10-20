@@ -1,8 +1,9 @@
 ---
 name: pr
 description: >
-  Push the current branch and open (or refresh) a pull request against main on
-  onestorm-net/bend. Requires `./gradlew build` to pass first, offers to run `/review-branch`
+  Push the current branch and open (or refresh) a pull request against development on
+  onestorm-net/bend. Requires `./gradlew build` to pass first, checks the outgoing diff and
+  commit metadata for personal details (the repo is public), offers to run `/review-branch`
   when this session has no review for HEAD, gates bug branches on `bug-fix-verifier`'s verdict
   and embeds that verdict in the PR body, and moves the Kendo issue to In Review. The only skill
   that pushes. Use whenever the user wants to create a PR, open a pull request, submit their
@@ -13,23 +14,23 @@ description: >
 
 # Pull Request
 
-Push the branch and open a PR against `main` on `onestorm-net/bend`, then move the linked Kendo
+Push the branch and open a PR against `development` on `onestorm-net/bend`, then move the linked Kendo
 issue to In Review. This is the only skill that pushes.
 
 ## Workflow
 
 ### 1. Gather branch state
 
-The base is always `main`. Run `git fetch origin main` first: every diff/log command below
-compares against `origin/main`, and fetching is what keeps that ref current.
+The base is always `development`. Run `git fetch origin development` first: every diff/log command below
+compares against `origin/development`, and fetching is what keeps that ref current.
 
 Then run these in parallel:
 - `git status`, to check for uncommitted changes
 - `git branch --show-current`, the branch name
-- `git log origin/main..HEAD --oneline`, all commits on this branch
-- `git diff origin/main...HEAD --stat`, the changed files summary
+- `git log origin/development..HEAD --oneline`, all commits on this branch
+- `git diff origin/development...HEAD --stat`, the changed files summary
 
-If on `main`, stop: there is nothing to PR. If there are uncommitted changes, ask the user
+If on `development`, stop: there is nothing to PR. If on `main`, stop too: promoting `development` to `main` is a release PR, which this skill does not open. If there are uncommitted changes, ask the user
 whether to `/commit` first.
 
 Extract the issue key (`BD-\d{4}`) from the branch name. No key: the branch isn't issue-driven;
@@ -44,6 +45,38 @@ skip the Kendo steps below silently.
 This runs compilation, every module's tests and the JaCoCo reports. It must pass before a PR is
 opened. On failure, report the failing task and test(s) and stop; don't open the PR and don't
 push. There is no CI on the repo, so this local run is the gate.
+
+### 2b. Privacy check
+
+`onestorm-net/bend` is public: whatever this push carries, in content or in commit metadata, is
+published for good. GitHub's push protection blocks known token formats server-side; this step
+catches what it can't recognise, personal details. Run both in parallel:
+
+```bash
+# Added lines: email addresses, absolute local paths, secret-shaped assignments
+git diff origin/development...HEAD -U0 | grep -E '^\+[^+]' \
+  | grep -nEo '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|\b[A-Za-z]:[\\/][^ `)"]*|/(Users|home)/[^ `)"]*|(password|passwd|secret|token|api[_-]?key)[A-Za-z_]*["'\'']?\s*[:=]\s*["'\'']?[^ "'\''`]{8,}'
+
+# Commit metadata: every author and committer address on the branch
+git log origin/development..HEAD --format='%ae|%ce' | sort -u
+```
+
+**Allowed without asking:** `noreply@anthropic.com` (the `Co-Authored-By` trailer), addresses
+`@onestorm.net`, `@users.noreply.github.com`, `example.com`/`example.org` placeholders, and
+paths that are clearly placeholders in prose (`C:\path\to\...`).
+
+**Anything else**, judge it in context. A hit that identifies a real person or machine (a
+personal address, a `C:\Users\<name>` or `D:\...` path from someone's PC, a tenant or customer
+name, a real credential) stops the PR:
+
+> Privacy check found content that would be published:
+> - `.claude/skills/foo/SKILL.md:42`: `C:\Users\<name>\...` (local path)
+> - commit author `someone@gmail.com` on 3 commits
+>
+> Proceed with PR anyway? [y/N]
+
+Default no. Fixing content is a normal commit. Fixing commit metadata means rewriting the
+branch's history, so name it and let the user decide; never rewrite on your own.
 
 ### 3. Check the pre-PR review gate
 
@@ -127,15 +160,17 @@ git push -u origin HEAD
 
 `-u` wires the branch to its own remote (`/newbranch` created it with `--no-track`). Then verify
 with `git rev-parse --abbrev-ref @{upstream}` that the upstream is `origin/<branch-name>`, never
-`origin/main`.
+`origin/development`.
 
 ### 5. Create or update the pull request
 
 Analyze ALL commits on the branch (not just the latest) to write:
 - **Title**: same format as commits, `<type>(<scope>): <summary> (BD-NNNN)`, under 70
-  characters: `feat(server-netty): add endpoint registry (BD-0012)`
-- **Body**: Summary of what the PR accomplishes, the Kendo issue key, plus Bug Fix Verification
-  when that gate applies. **No Review Handoff block.** The pushed code is the record.
+  characters: `feat(server-netty): add endpoint registry (BD-0012)`. A keyless branch drops the
+  ` (BD-NNNN)` suffix.
+- **Body**: Summary of what the PR accomplishes, the Kendo issue key (omit the `Kendo:` line on a
+  keyless branch), plus Bug Fix Verification when that gate applies. **No Review Handoff
+  block.** The pushed code is the record.
 
 If a PR already exists for this branch (`gh pr list --head "$(git branch --show-current)"`),
 splice the body using **Refreshing an existing PR body** below. Always splice `## Summary`.
@@ -160,7 +195,7 @@ sections. Always splice; never pass a partial body.
 Otherwise create it:
 
 ```bash
-gh pr create --repo onestorm-net/bend --base main --title "<type>(<scope>): <summary> (BD-NNNN)" --body "$(cat <<'EOF'
+gh pr create --repo onestorm-net/bend --base development --title "<type>(<scope>): <summary> (BD-NNNN)" --body "$(cat <<'EOF'
 ## Summary
 - Bullet points summarizing the changes
 

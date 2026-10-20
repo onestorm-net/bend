@@ -32,7 +32,7 @@ always `./gradlew`; Gradle project paths are `:bend-protocol`, `:bend-client-api
 Planning happens on the issue's branch, and the plan folder is named after it.
 
 1. Run `git branch --show-current`. The branch must match `BD-NNNN-<kebab-slug>` (e.g.
-   `BD-0012-server-endpoint-registry`). If it doesn't (you're on `main`, or on a branch with no
+   `BD-0012-server-endpoint-registry`). If it doesn't (you're on `development` or `main`, or on a branch with no
    issue key), stop: *"plan-feature writes into `docs/issues/<branch-name>/`, so it needs an issue
    branch. Run `/newbranch` (new issue) or `/prepare-issue BD-NNNN` (existing issue) first."*
 2. The issue key is the branch's `BD-NNNN` prefix. If the developer passed an issue URL
