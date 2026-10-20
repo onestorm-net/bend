@@ -18,7 +18,7 @@ This ADR binds nothing in 0.1. Recorded direction, for when this work is planned
 ## Does not decide
 
 - Hosting, tooling or domain. The above is direction, not a choice.
-- What the site contains. Javadoc scope is [ADR 0021](0021-javadoc-scope.md).
+- What the site contains. Javadoc scope is [ADR 0021](/docs/decisions/0021-javadoc-scope.md).
 
 ## Rejected
 

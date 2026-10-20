@@ -16,7 +16,7 @@ without losing an actionable distinction. Two conditions (no `Handshake` within 
 ## Decision
 
 Type `3` is renamed to plain `Timeout` and covers every timeout. The specific cause goes in
-`Reason`. See [protocol-v1.md § Disconnect](../../protocol/protocol-v1.md) for the type table.
+`Reason`. See [protocol-v1.md § Disconnect](/protocol/protocol-v1.md) for the type table.
 
 ## Does not decide
 

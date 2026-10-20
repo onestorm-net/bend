@@ -1,6 +1,6 @@
 # BD-0008: Clean up and split CLAUDE.md before it goes public
 
-> Plan: [PLAN.md](PLAN.md) | Decisions: [DECISIONS.md](DECISIONS.md)
+> Plan: [PLAN.md](/docs/issues/BD-0008-split-claude-md/PLAN.md) | Decisions: [DECISIONS.md](/docs/issues/BD-0008-split-claude-md/DECISIONS.md)
 
 Documentation-only. There are no test classes, so `[RED]` means "run the check from PLAN.md's
 Acceptance Criteria code block and see it fail (or have nothing to pass on)" and `[GREEN]` means

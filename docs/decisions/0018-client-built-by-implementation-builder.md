@@ -23,7 +23,7 @@ reconfigure or reconnect it.
 
 Trade-off accepted: code that constructs a client imports `client-netty`. Code that only uses a
 client depends on `client-api` alone, which is where transport independence matters
-([ADR 0013](0013-module-naming.md)).
+([ADR 0013](/docs/decisions/0013-module-naming.md)).
 
 ## Does not decide
 

@@ -82,7 +82,7 @@ branch's history, so name it and let the user decide; never rewrite on your own.
 
 `/pr` does not spawn the review finders itself. Which gate applies depends on the branch type.
 Resolve `docs/issues/<branch-name>/` with
-[`.claude/references/plan-directory.md`](../../references/plan-directory.md); the file it holds
+[`.claude/references/plan-directory.md`](/.claude/references/plan-directory.md); the file it holds
 decides the type:
 
 | Directory holds | Gate | Artifact | Missing artifact |

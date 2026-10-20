@@ -17,7 +17,7 @@ without notice, and documenting them publicly would promise otherwise.
 
 ## Does not decide
 
-- How Javadoc is published or hosted; see [ADR 0024](0024-docs-site.md).
+- How Javadoc is published or hosted; see [ADR 0024](/docs/decisions/0024-docs-site.md).
 - Which parts of `protocol` count as public.
 
 ## Rejected

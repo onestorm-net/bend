@@ -41,7 +41,7 @@ Each module has its own `CLAUDE.md` with the rules specific to it.
 
 - Built-in packets go to the channel through an internal path; user payloads go through the
   public, registration-checked send path wrapped in `Endpoint Message`. Never mix the two.
-  ([0008](docs/decisions/0008-two-protocol-layers.md))
+  ([0008](/docs/decisions/0008-two-protocol-layers.md))
 - Frame and input rules (length width, padding, zero-length frames, array lengths, endpoint
   validation) are in `protocol/CLAUDE.md` and ADRs 0001 to 0006.
 
@@ -49,60 +49,60 @@ Each module has its own `CLAUDE.md` with the rules specific to it.
 
 - No Netty types (`ByteBuf`, `Channel`, `ChannelFuture`, `EventLoop`) in a public API module;
   payloads cross as `java.nio.ByteBuffer`, converted inside the `-netty` modules.
-  ([0012](docs/decisions/0012-no-netty-types-in-api.md))
+  ([0012](/docs/decisions/0012-no-netty-types-in-api.md))
 - Malformed or oversized wire input raises `ProtocolException`; caller misuse at setup time
-  raises `IllegalArgumentException`. ([0011](docs/decisions/0011-protocol-exception.md))
+  raises `IllegalArgumentException`. ([0011](/docs/decisions/0011-protocol-exception.md))
 - A `Client` comes from its implementation's builder, which returns the `client-api` `Client`
   interface; `client-api` depends on nothing.
-  ([0018](docs/decisions/0018-client-built-by-implementation-builder.md))
+  ([0018](/docs/decisions/0018-client-built-by-implementation-builder.md))
 
 ## Testing / coverage
 
 - Tests: JUnit Jupiter and AssertJ, one test class per production class, methods named
   `method_condition_expected`.
 - Coverage reports are XML and CSV under `<module>/build/reports/jacoco/test/`; there is no
-  coverage gate. ([0010](docs/decisions/0010-coverage-reporting.md))
+  coverage gate. ([0010](/docs/decisions/0010-coverage-reporting.md))
 - A defensive check for a case the current code can't produce is deleted, not kept; a missed
   line is a question of reachability, never a reason for a contrived test.
-  ([0009](docs/decisions/0009-unreachable-checks-deleted.md))
+  ([0009](/docs/decisions/0009-unreachable-checks-deleted.md))
 
 ## Module naming convention
 
 - The API module gets the plain name (`client-api`); an implementation gets its transport as a
-  suffix (`client-netty`), never `-impl`. ([0013](docs/decisions/0013-module-naming.md))
+  suffix (`client-netty`), never `-impl`. ([0013](/docs/decisions/0013-module-naming.md))
 
 ## Module set
 
 - 0.1 is `protocol`, `client-api`, `client-netty`, `server-netty`; no `server-api`.
   Registration lives in `server-netty` with Netty-agnostic signatures; don't half-build a module
-  loading mechanism. ([0016](docs/decisions/0016-module-set-0-1.md))
+  loading mechanism. ([0016](/docs/decisions/0016-module-set-0-1.md))
 - The module system is Deferred and binds nothing in 0.1.
-  ([0017](docs/decisions/0017-module-system.md))
+  ([0017](/docs/decisions/0017-module-system.md))
 
 ## Build tooling
 
 - Always `./gradlew` (wrapper 9.7.1, JDK 25 toolchain), never a bare `gradle`. Use the Gradle
   project path in commands: `./gradlew :bend-protocol:test --rerun`.
-  ([0014](docs/decisions/0014-gradle-build-layout.md))
+  ([0014](/docs/decisions/0014-gradle-build-layout.md))
 - Dependency versions live in `gradle/libs.versions.toml`.
-  ([0014](docs/decisions/0014-gradle-build-layout.md))
+  ([0014](/docs/decisions/0014-gradle-build-layout.md))
 - There is no linter or formatter yet; which tool to add is Open.
-  ([0015](docs/decisions/0015-style-enforcement-tooling.md))
+  ([0015](/docs/decisions/0015-style-enforcement-tooling.md))
 - Versions are `0.x`, one version for all modules, set at the root.
-  ([0020](docs/decisions/0020-first-release-0-x.md))
+  ([0020](/docs/decisions/0020-first-release-0-x.md))
 
 ## Documentation scope
 
 - Javadoc covers public contract modules (`client-api`, and `protocol` where it is public), not
-  implementation modules. ([0021](docs/decisions/0021-javadoc-scope.md))
+  implementation modules. ([0021](/docs/decisions/0021-javadoc-scope.md))
 
 ## Workflow
 
 - `development` is the integration branch; `main` only moves through a release PR. Issue
   branches are `BD-NNNN-<slug>`, small issue-less changes `<type>/<slug>`, all PR'd into
-  `development`. ([0022](docs/decisions/0022-workflow-branches-and-commits.md))
+  `development`. ([0022](/docs/decisions/0022-workflow-branches-and-commits.md))
 - Commit messages and PR titles end with the issue key: `(BD-NNNN)`.
-  ([0022](docs/decisions/0022-workflow-branches-and-commits.md))
+  ([0022](/docs/decisions/0022-workflow-branches-and-commits.md))
 - The skills in `.claude/skills/` carry the step-by-step workflow (`/newbranch`,
   `/plan-feature`, `/task-writer`, `/next`, `/commit`, `/review-branch`, `/pr`); see
   `.claude/README.md`.
@@ -122,3 +122,6 @@ similar. Create it yourself; it is never committed.
 ## Writing style
 
 - No em dashes in prose or docs; use commas, periods or parentheses.
+- Link repo files from the root with a leading `/`, e.g.
+  `[spec](/protocol/protocol-v1.md)`, never `../`. (BD-0008 D12,
+  [DECISIONS.md](/docs/issues/BD-0008-split-claude-md/DECISIONS.md))

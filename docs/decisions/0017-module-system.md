@@ -11,7 +11,7 @@ it a requirement now.
 ## Decision
 
 This ADR binds nothing in 0.1. Nothing in 0.1 is designed toward it; see
-[ADR 0016](0016-module-set-0-1.md) for what 0.1 does instead.
+[ADR 0016](/docs/decisions/0016-module-set-0-1.md) for what 0.1 does instead.
 
 Recorded direction, for when this work is planned:
 

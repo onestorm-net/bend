@@ -4,7 +4,7 @@
 
 ## Context
 
-[protocol-v1.md](../../protocol/protocol-v1.md) has two kinds of traffic:
+[protocol-v1.md](/protocol/protocol-v1.md) has two kinds of traffic:
 
 1. **Built-in packets**: `Handshake`, `Disconnect`, `Available Endpoints` and its
    acknowledgement, `Supported Endpoints` and its acknowledgement, `Keep Alive`. Their order and

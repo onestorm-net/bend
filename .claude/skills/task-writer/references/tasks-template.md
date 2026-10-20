@@ -154,4 +154,4 @@ them inside the task structure:
 - Javadoc for anything public in `client-api`
 - Integration into existing code (registration tables, pipeline setup)
 
-For when to **split** instead of bundle, see [`task-sizing.md`](task-sizing.md).
+For when to **split** instead of bundle, see [`task-sizing.md`](/.claude/skills/task-writer/references/task-sizing.md).

@@ -28,7 +28,7 @@ The base is always `development`. The tracker is Kendo via the local `kendo` MCP
 3. Extract the issue key from the branch name (`BD-\d{4}`, e.g. `BD-0007` from
    `BD-0007-claude-skills`); Step 2's Kendo lookup uses it.
 4. Resolve the branch's directory with
-   [`.claude/references/plan-directory.md`](../../references/plan-directory.md) (shared with
+   [`.claude/references/plan-directory.md`](/.claude/references/plan-directory.md) (shared with
    `next`, `task-writer`, `commit`, `review-branch` and `pr`). It tries
    `docs/issues/<branch-name>/` first, then a single folder starting with the issue key. Use its
    `catchup` fallback instead of asking: report "no plan directory"; several key-prefix matches →

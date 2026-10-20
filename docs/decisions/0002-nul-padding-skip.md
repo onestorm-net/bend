@@ -14,7 +14,7 @@ so a frame length is never legitimately `0`, and a leading `0x00` can only be pa
 ## Decision
 
 Readers skip `0x00` bytes before a frame's length prefix, and a run of more than 16 consecutive
-NUL bytes disconnects. The rule text is in [protocol-v1.md § Frame](../../protocol/protocol-v1.md).
+NUL bytes disconnects. The rule text is in [protocol-v1.md § Frame](/protocol/protocol-v1.md).
 The threshold of 16 is kept as inherited.
 
 ## Does not decide

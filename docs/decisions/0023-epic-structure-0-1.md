@@ -7,7 +7,7 @@
 
 An epic groups issues on a timeline. The protocol's design and implementation were already
 done when the tracker was set up, with no issues to attach and none planned. Its full record is
-in [protocol-v1.md](../../protocol/protocol-v1.md) and ADRs 0001 to 0007.
+in [protocol-v1.md](/protocol/protocol-v1.md) and ADRs 0001 to 0007.
 
 ## Decision
 
@@ -17,7 +17,7 @@ in [protocol-v1.md](../../protocol/protocol-v1.md) and ADRs 0001 to 0007.
   needs a working client and server to test against.
 - There is no `Protocol` epic.
 - `server-api` gets no epic until `Release hygiene` closes and `0.1.0` is tagged; it is not part
-  of the 0.1 sequence ([ADR 0016](0016-module-set-0-1.md)).
+  of the 0.1 sequence ([ADR 0016](/docs/decisions/0016-module-set-0-1.md)).
 
 ## Does not decide
 

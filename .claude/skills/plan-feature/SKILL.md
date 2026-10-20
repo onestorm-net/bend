@@ -23,7 +23,7 @@ entire conversation.
 Bend facts this skill relies on: tracker is Kendo via the local `kendo` MCP server
 (`mcp__kendo__*` tools only, never `mcp__claude_ai_Kendo-*`), `project_id: 1`, issue keys
 `BD-NNNN`, issues written in English. Planning artifacts live in `docs/issues/<branch-name>/`
-(see [`.claude/references/plan-directory.md`](../../references/plan-directory.md)). Gradle is
+(see [`.claude/references/plan-directory.md`](/.claude/references/plan-directory.md)). Gradle is
 always `./gradlew`; Gradle project paths are `:bend-protocol`, `:bend-client-api`,
 `:bend-client-netty`, `:bend-server-netty`.
 
@@ -119,7 +119,7 @@ missing, or should any of these be replaced instead of reused?"
 
 ### 1d. Sketch module shape (deep vs shallow): apply the test, don't grade yourself
 
-Before validating layers, decide what new classes this feature introduces and whether each is deep or shallow. Load [`references/module-shape-lens.md`](references/module-shape-lens.md) and read the **shallow-detection test** section in particular. The lens is three specific tests about interface complexity vs implementation per use case, not a vibe check. Implementation line count is not one of them: a handler with 200 lines of state-machine code inside, one method, and 5 primitive params is shallow regardless of body length.
+Before validating layers, decide what new classes this feature introduces and whether each is deep or shallow. Load [`references/module-shape-lens.md`](/.claude/skills/plan-feature/references/module-shape-lens.md) and read the **shallow-detection test** section in particular. The lens is three specific tests about interface complexity vs implementation per use case, not a vibe check. Implementation line count is not one of them: a handler with 200 lines of state-machine code inside, one method, and 5 primitive params is shallow regardless of body length.
 
 For each in-scope class, output one row to PLAN.md's "Key Design Decisions" table (or a dedicated Module-Shape sub-table) with these columns:
 
@@ -165,7 +165,7 @@ CLAUDE.md layer rules allow Y to depend on [list]."
 
 ## Phase 1.4: Pre-flight verification (mandatory, fail-closed)
 
-Every path and symbol the plan cites gets resolved mechanically before it lands. Projecting what *should* exist instead of grepping once cost a plan three reviewer rounds: [`references/anti-patterns.md`](references/anti-patterns.md) § Calibration records the four categories it produced.
+Every path and symbol the plan cites gets resolved mechanically before it lands. Projecting what *should* exist instead of grepping once cost a plan three reviewer rounds: [`references/anti-patterns.md`](/.claude/skills/plan-feature/references/anti-patterns.md) § Calibration records the four categories it produced.
 
 `<skill dir>`, used here and again by Phase 5's reviewer agents, is the checked-in copy:
 
@@ -199,7 +199,7 @@ Reviewers catch unverified confident claims; they will NOT reliably catch hedged
 
 Before any drafting, produce this literal checklist and mark each row **✓ Covered**, **? Partial**, or **✗ Missing**. Every ✓ requires a quoted source. **No ? or ✗ row may survive into drafting**: Phase 2 exists to close them, so an open row sends you there rather than blocking you. Phase 3 is what's unreachable while any row is still ? or ✗.
 
-Load [`references/quality-gates.md`](references/quality-gates.md) for the rationale, sycophancy guards, and proceed/return rules.
+Load [`references/quality-gates.md`](/.claude/skills/plan-feature/references/quality-gates.md) for the rationale, sycophancy guards, and proceed/return rules.
 
 | Required for a plan | Marker | Source (must quote / cite) |
 |---|---|---|
@@ -223,9 +223,9 @@ Output the table verbatim to the developer with marks and citations filled in. I
 
 Produce a `## Security & Cost Surface` section in PLAN.md with **seven prose paragraphs**, each answering the questions for one row and ending with its Proof line, or `N/A: <one-line reason>` when no question on the row applies. **You may not proceed past Phase 1.6 with any unanswered question on a populated row.**
 
-The canonical questions and worked examples live at [`references/surface-questions.md`](references/surface-questions.md); load it now. It is the single source of truth shared with the `surface-reviewer` agent at Phase 5. The rows are deliberately question-shaped, not field-shaped, so they generalise to feature shapes not seen yet. The hazard classes they ask about come from Bend's own history, recorded in the Context of the ADRs in `docs/decisions/` (the frame-decoder width asymmetry in 0001, the array pre-allocation bug in 0004, the built-in packets sent through the public send path in 0008, the unreachable "defensive" checks in 0009): a row whose hazard the feature repeats needs an answer that names the seam that ends it, not a generic one.
+The canonical questions and worked examples live at [`references/surface-questions.md`](/.claude/skills/plan-feature/references/surface-questions.md); load it now. It is the single source of truth shared with the `surface-reviewer` agent at Phase 5. The rows are deliberately question-shaped, not field-shaped, so they generalise to feature shapes not seen yet. The hazard classes they ask about come from Bend's own history, recorded in the Context of the ADRs in `docs/decisions/` (the frame-decoder width asymmetry in 0001, the array pre-allocation bug in 0004, the built-in packets sent through the public send path in 0008, the unreachable "defensive" checks in 0009): a row whose hazard the feature repeats needs an answer that names the seam that ends it, not a generic one.
 
-Unit tests of individual packets do not cover this. They cover *code shape*, not the flow of untrusted bytes into an allocation, what a silent peer does to a connection, which thread a handler runs on, or who releases a buffer. [`references/quality-gates.md`](references/quality-gates.md) carries the rationale and the sycophancy guards (paraphrasing the questions back is THIN, not OK; a feature that reads anything off the wire cannot mark Row 1 N/A).
+Unit tests of individual packets do not cover this. They cover *code shape*, not the flow of untrusted bytes into an allocation, what a silent peer does to a connection, which thread a handler runs on, or who releases a buffer. [`references/quality-gates.md`](/.claude/skills/plan-feature/references/quality-gates.md) carries the rationale and the sycophancy guards (paraphrasing the questions back is THIN, not OK; a feature that reads anything off the wire cannot mark Row 1 N/A).
 
 Output the seven paragraphs to the developer for confirmation, then carry them into PLAN.md at Phase 4c. The `surface-reviewer` agent grades them at Phase 5, and `precedent-reviewer` holds them against the diff at PR time: this is the one part of PLAN.md with a reader after the branch is built.
 
@@ -328,7 +328,7 @@ Once the developer confirms, do the following:
 The issue exists (Phase 0 required its branch). If the agreed scope or acceptance criteria are
 sharper than the issue body, update its description with `mcp__kendo__update-issue-tool`,
 written **against** the Feature template in
-[`.claude/skills/kendo/references/issue-templates.md`](../kendo/references/issue-templates.md)
+[`.claude/skills/kendo/references/issue-templates.md`](/.claude/skills/kendo/references/issue-templates.md)
 (User Story / Context / Acceptance Criteria / Scope / Testing). Don't improvise a structure.
 Leave the issue alone when it already matches.
 
@@ -336,18 +336,18 @@ Leave the issue alone when it already matches.
 
 The plan folder is `docs/issues/<branch-name>/`, the exact current branch name from Phase 0 (e.g.
 `docs/issues/BD-0012-server-endpoint-registry/`). Don't mint a different slug: every reader finds
-the folder through [`.claude/references/plan-directory.md`](../../references/plan-directory.md),
+the folder through [`.claude/references/plan-directory.md`](/.claude/references/plan-directory.md),
 which looks for the branch name.
 
 Write decisions to `docs/issues/<branch-name>/DECISIONS.md` **as they are made** during planning,
 not after; rejected proposals and their reasoning are valuable context.
 
-Use the format and rules in [`references/decisions-template.md`](references/decisions-template.md).
+Use the format and rules in [`references/decisions-template.md`](/.claude/skills/plan-feature/references/decisions-template.md).
 
 ### 4c. Write PLAN.md
 
 Save the plan to `docs/issues/<branch-name>/PLAN.md` using the structure in
-[`references/plan-template.md`](references/plan-template.md). The template is the contract:
+[`references/plan-template.md`](/.claude/skills/plan-feature/references/plan-template.md). The template is the contract:
 downstream agents and skills (`plan-reviewer`, `surface-reviewer`, `/task-writer`, `/next`,
 `precedent-reviewer`) parse the section names, so don't rename or omit them.
 
@@ -355,7 +355,7 @@ downstream agents and skills (`plan-reviewer`, `surface-reviewer`, `/task-writer
 
 Before spawning the reviewers, verify every section of the saved PLAN.md is substantive. Mark each row **OK** if the bullet rule is met **or** if the section explicitly declares `N/A: <one-line reason>`. Otherwise **THIN**; re-work before continuing.
 
-Load [`references/quality-gates.md`](references/quality-gates.md) for the rationale, the N/A carve-out, and sycophancy guards.
+Load [`references/quality-gates.md`](/.claude/skills/plan-feature/references/quality-gates.md) for the rationale, the N/A carve-out, and sycophancy guards.
 
 | Section | OK requires |
 |---|---|
@@ -372,7 +372,7 @@ Load [`references/quality-gates.md`](references/quality-gates.md) for the ration
 | Edge Cases | ≥ 3 cases drawn from the Phase 1.5 ✓ Edge Cases evidence |
 | Risks | ≥ 1 specific risk; not "the implementation may have bugs" |
 | Documentation Sync | every row (`protocol-v1.md`, `client-api` Javadoc, `CLAUDE.md`) marked Update or `N/A: <reason>` |
-| DECISIONS.md entries | each 5–10 non-blank lines, heading included, in the Context / Decision / Rejected shape of [`decisions-template.md`](references/decisions-template.md); a longer entry is split or trimmed |
+| DECISIONS.md entries | each 5–10 non-blank lines, heading included, in the Context / Decision / Rejected shape of [`decisions-template.md`](/.claude/skills/plan-feature/references/decisions-template.md); a longer entry is split or trimmed |
 | Hedge parentheticals | Zero `(or whatever)` / `(TBD)` / `(or X)` hedges on load-bearing claims. A hedge papers over a decision you owe: decide it and cite it (Phase 1.4), or escalate via `AskUserQuestion`. |
 
 When every row is OK, proceed to Phase 5.
@@ -404,4 +404,4 @@ Do not invoke `/task-writer` or `/next` from inside this skill. Each downstream 
 
 ## Anti-patterns to avoid
 
-See [`references/anti-patterns.md`](references/anti-patterns.md): lessons-from-pain captured outside SKILL.md so they're loaded once on demand, not every invocation.
+See [`references/anti-patterns.md`](/.claude/skills/plan-feature/references/anti-patterns.md): lessons-from-pain captured outside SKILL.md so they're loaded once on demand, not every invocation.

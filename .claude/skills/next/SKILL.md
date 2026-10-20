@@ -25,7 +25,7 @@ following TDD flow, and mark it done with learnings.
 
 The planning folder is `docs/issues/<branch-name>/`, where the folder name is the exact current
 branch name (e.g. `docs/issues/BD-0012-namespaced-id/`). Resolve it with
-[`.claude/references/plan-directory.md`](../../references/plan-directory.md), then look for
+[`.claude/references/plan-directory.md`](/.claude/references/plan-directory.md), then look for
 `TASKS.md` inside it.
 
 If the folder holds `BUG.md` instead of `PLAN.md`, this is a bug branch; point the user at

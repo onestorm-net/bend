@@ -111,3 +111,14 @@
 
 **Rejected:**
 - One ADR with a mixed status: a fourth status value that D3, the index and AC 3 can't see.
+
+## D12: Repo file links are written from the root, as `/path`
+**Status:** Accepted
+
+**Context:** The split left the same target written three ways (`docs/...`, `../docs/...`, `../../protocol/...`) depending on where the linking file sits, and relative links break when that file moves.
+
+**Decision:** Every Markdown link to a repo file starts with `/` and is written from the repository root, e.g. `[0008](/docs/decisions/0008-two-protocol-layers.md)`. GitHub documents that "Links starting with `/` will be relative to the repository root"; templates use placeholders such as `/docs/issues/<branch-name>/PLAN.md`.
+
+**Rejected:**
+- Relative links (`../../`): differ per file and break on a move.
+- Plain root paths as code text, no link: unambiguous, but not clickable on GitHub.

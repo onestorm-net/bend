@@ -7,7 +7,7 @@
 `VarInt28FrameDecoder` and `VarInt28LengthEncoder` were adapted from Velocity's
 `MinecraftVarintFrameDecoder`. The decoder's VarInt reader came with a hard 3-byte / 21-bit cap,
 taken from vanilla Minecraft's packet-size limit, so the largest length it could read was
-`2^21 - 1` (about 2MB). [protocol-v1.md § Frame](../../protocol/protocol-v1.md) allows frames up
+`2^21 - 1` (about 2MB). [protocol-v1.md § Frame](/protocol/protocol-v1.md) allows frames up
 to 4MB, and the encoder used the general 32-bit `ProtocolUtil.writeVarInt`, so the encoder could
 write lengths the decoder refused to read back.
 

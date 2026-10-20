@@ -3,7 +3,7 @@
 **Date:** 2026-10-20
 **Status:** Approved
 **Issue:** [BD-0008](https://onestorm.kendo.dev/projects/1/issues/BD-0008)
-**Decisions:** [DECISIONS.md](DECISIONS.md)
+**Decisions:** [DECISIONS.md](/docs/issues/BD-0008-split-claude-md/DECISIONS.md)
 
 ## Goal
 Anyone who clones Bend, and every Claude session working in it, gets a short, current, public
@@ -31,6 +31,7 @@ recorded history or ideas being mistaken for requirements.
   - Rewrite root `CLAUDE.md` (Approach step 6).
   - New `protocol/CLAUDE.md`, `client-api/CLAUDE.md`, `client-netty/CLAUDE.md`, `server-netty/CLAUDE.md`.
   - New `docs/decisions/README.md` and ADRs 0001 to 0024.
+  - Write every Markdown link to a repo file from the root as `/path` (D12), including the skills in `.claude/` and the templates.
   - Repoint the CLAUDE.md citations in `client-api/build.gradle.kts:2`, `client-netty/build.gradle.kts:2` and `server-netty/build.gradle.kts:1` (comments only; the last also carries an em dash).
   - `.gitignore`: drop `CLAUDE.md`, add `.claude/local-references.md`.
   - Update every CLAUDE.md citation and role description in `.claude/` (Approach step 7).

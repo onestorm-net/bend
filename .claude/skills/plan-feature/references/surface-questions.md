@@ -9,7 +9,7 @@ This is the **single source of truth** for the seven row questions that:
 
 The rows are deliberately **question-shaped, not field-shaped**. Filling in a form trains for the past; answering a question generalises to the next feature. Worked examples below each row show what a strong answer reads like; they are illustrative, not templates.
 
-For the rationale and sycophancy guards, see [`quality-gates.md`](quality-gates.md) § Phase 1.6.
+For the rationale and sycophancy guards, see [`quality-gates.md`](/.claude/skills/plan-feature/references/quality-gates.md) § Phase 1.6.
 
 ---
 

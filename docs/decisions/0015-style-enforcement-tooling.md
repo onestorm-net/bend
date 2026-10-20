@@ -28,7 +28,7 @@ pick:
 - Violations fail the build rather than being rewritten.
 - It should have compiler or type-level context (in the spirit of Error Prone), not only
   textual or syntactic matching.
-- Reports as XML or CSV, not HTML (as with [ADR 0010](0010-coverage-reporting.md)); config as
+- Reports as XML or CSV, not HTML (as with [ADR 0010](/docs/decisions/0010-coverage-reporting.md)); config as
   plain, readable files in the repo (e.g. `config/<tool>/`).
 - The motivating rule is `final` on private fields never reassigned outside the constructor.
 

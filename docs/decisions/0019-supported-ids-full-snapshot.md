@@ -5,7 +5,7 @@
 ## Context
 
 A client tells the server which endpoint ids it can handle
-([protocol-v1.md § Supported Endpoints](../../protocol/protocol-v1.md)): the intersection of the
+([protocol-v1.md § Supported Endpoints](/protocol/protocol-v1.md)): the intersection of the
 ids the server has advertised as available and the ids the client has local handlers for. That
 set changes when a new available-endpoints list arrives, or when a handler is registered for an
 id that is in the available list.

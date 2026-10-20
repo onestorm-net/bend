@@ -22,7 +22,7 @@ rule. Otherwise the heading is omitted rather than carrying an `N/A` row.
 **Date:** <YYYY-MM-DD>
 **Status:** Draft
 **Issue:** [BD-NNNN](https://onestorm.kendo.dev/projects/1/issues/BD-NNNN)
-**Decisions:** [DECISIONS.md](DECISIONS.md)
+**Decisions:** [DECISIONS.md](/docs/issues/<branch-name>/DECISIONS.md)
 
 ## Goal
 <one sentence: what this enables for a user of Bend (a client or server author, or a peer on the wire)>
@@ -79,7 +79,7 @@ table is where site N+1 gets found first.
 
 Carried forward from Phase 1.6. Seven rows; each row is a **prose answer** to the row's questions ending in a `Proof:` line, or `N/A: <one-line reason>`. Audited at Phase 5 by `surface-reviewer` (running in parallel with `plan-reviewer`).
 
-The canonical questions for each row live in [`surface-questions.md`](surface-questions.md) (next to this template); fill prose here that answers those questions, don't paraphrase them back.
+The canonical questions for each row live in [`surface-questions.md`](/.claude/skills/plan-feature/references/surface-questions.md); fill prose here that answers those questions, don't paraphrase them back.
 
 ### Untrusted wire input and allocation bounds
 <prose: each field read off the wire and which side decodes it, the check that runs before every peer-sized allocation or loop, reader/writer width symmetry, the exception malformed input raises, spec MUST validation on decode; OR `N/A: <reason>`>

@@ -14,7 +14,7 @@ blocks don't catch.
 
 Both directions were exposed: `AvailableEndpointsPacket` (server to client) and
 `SupportedEndpointsPacket` (client to server, via `readVarIntArray`); the arrays are defined in
-[protocol-v1.md § Available Endpoints and § Supported Endpoints](../../protocol/protocol-v1.md). `ProtocolUtil.readString`
+[protocol-v1.md § Available Endpoints and § Supported Endpoints](/protocol/protocol-v1.md). `ProtocolUtil.readString`
 already guarded against this (`buffer.isReadable(length)` before reading); the array readers
 never got the same check.
 

@@ -16,7 +16,7 @@ A spec-versus-implementation audit found three gaps in `protocol-v1.md`:
 
 ## Decision
 
-- [protocol-v1.md § Client-side disconnect conditions](../../protocol/protocol-v1.md) mirrors
+- [protocol-v1.md § Client-side disconnect conditions](/protocol/protocol-v1.md) mirrors
   the server-side section. Its timeouts (handshake response, keep-alive received) reuse the
   spec's existing 30-second constant rather than a new number.
 - An `Endpoint Message` sent in a direction its endpoint's flags don't permit is a disconnect

@@ -4,11 +4,11 @@
 
 ## Context
 
-Adding JaCoCo ([ADR 0010](0010-coverage-reporting.md)) left two lines in the frame decoder that
+Adding JaCoCo ([ADR 0010](/docs/decisions/0010-coverage-reporting.md)) left two lines in the frame decoder that
 no input could cover. Both were traced rather than tested around:
 
 - `if (length < 0) throw ...` in `decode()`. The VarInt reader caps at 28 bits
-  ([ADR 0001](0001-frame-length-28-bit-varint.md)), which can never set an `int`'s sign bit,
+  ([ADR 0001](/docs/decisions/0001-frame-length-28-bit-varint.md)), which can never set an `int`'s sign bit,
   and neither read path returns a negative failure value: an incomplete read returns `0` with
   the reader index unmoved, and a too-wide VarInt throws. The same check sits verbatim in
   Velocity's `MinecraftVarintFrameDecoder`, equally dead against its 21-bit reader; it most
