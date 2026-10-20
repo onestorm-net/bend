@@ -14,8 +14,9 @@ API behaviour, bytes on the wire, when a connection is closed and with which `Di
 2. [Feature Template (User Story)](#feature-template-user-story)
 3. [Bug Template (Bug Report)](#bug-template-bug-report)
 4. [Task](#task)
-5. [Writing Principles](#writing-principles)
-6. [Examples](#examples)
+5. [What done looks like](#what-done-looks-like)
+6. [Writing Principles](#writing-principles)
+7. [Examples](#examples)
 
 ---
 
@@ -75,7 +76,8 @@ As an [API consumer / protocol implementer], I want [functionality] so that [goa
 **Out:**
 - [explicitly excluded; prevents scope creep at review]
 
-## Testing
+## What done looks like
+- Proof: [an outcome a plain test cannot prove]: [its proof]
 - `./gradlew :bend-<module>:test --tests '<fully.qualified.TestClass>' --rerun`
 - [which test class(es) gain cases; JaCoCo report shows no new uncovered lines]
 ```
@@ -114,7 +116,8 @@ Reference the protocol-v1.md rule it violates if there is one.]
 **Out:**
 - [broader refactors that are tempting but deserve a separate issue]
 
-## Testing
+## What done looks like
+- Proof: [an outcome a plain test cannot prove]: [its proof]
 - `./gradlew :bend-<module>:test --tests '<fully.qualified.TestClass>' --rerun`
 - [the test method that goes red to green, named `method_condition_expected`]
 ```
@@ -152,18 +155,22 @@ negotiation, keep-alive, endpoint messages.]
 **In:** [what you think needs to be touched]
 **Out:** [what is explicitly out of scope]
 
-## Testing
-- [how the fix is validated: Gradle command and test class]
+## What done looks like
+- Proof: the steps above no longer reproduce; a test that replays them is red before the fix.
+- [the scoped Gradle command and test class]
 ```
 
-AC are not written at this stage; they belong in the fix issue once the cause is known.
+AC are not written at this stage; they belong in the fix issue once the cause is known. The steps
+to reproduce are already an objective check, so `## What done looks like` holds them as its Proof
+line.
 
 ---
 
 ## Task
 
-Tasks use direct description, no fixed template. Describe the work, its motivation, and what
-done looks like, at the level appropriate to the task:
+Tasks use direct description, no fixed template. Describe the work and its motivation, and end
+with [`## What done looks like`](#what-done-looks-like), the same section the other types end
+with. AC sit at the level appropriate to the task:
 
 - **Refactoring**: structural change is the requirement. AC name the classes, call patterns or
   invariants that must hold afterwards (e.g. "`client-api` has no `io.netty` import").
@@ -172,6 +179,33 @@ done looks like, at the level appropriate to the task:
 - **Research / investigation**: AC describe the deliverable and what makes it actionable (the
   decision recorded in CLAUDE.md, covering these questions, concrete enough to file follow-up
   issues from).
+
+---
+
+## What done looks like
+
+Every issue ends with `## What done looks like`: the checks that tell whoever picks the issue up
+(an agent or the developer) that the work is done, without asking anyone. Kendo gives an epic a
+list of the same name (`checks`); this section is the issue's own.
+
+```markdown
+## What done looks like
+- Proof: [an outcome a plain test cannot prove]: [its proof]
+- [the scoped Gradle command]
+```
+
+- **`Proof:`**: only for an outcome a plain unit test cannot prove, with its proof: a JaCoCo
+  report line, a deliberate break that must turn red, bytes captured off a real connection, a
+  decision recorded in CLAUDE.md. An acceptance criterion a plain test proves gets no Proof line:
+  the Gradle command covers it. A change whose tests prove every criterion has no Proof line.
+- **The Gradle command**: the scoped test run the change touches (see
+  [Writing Principles](#writing-principles)).
+- **At most three `Proof:` lines.** More means the issue is too big, or the lines restate the
+  acceptance criteria.
+- **No `Browser look:` line.** Upstream's template has one for screens to check in a running app;
+  Bend is a library with no UI, so it would always read "none".
+
+An issue written before this section existed ends with `## Testing`; read it as this section.
 
 ---
 
@@ -187,7 +221,7 @@ done looks like, at the level appropriate to the task:
   write `[TBD: <what needs deciding>]` rather than leaving the hedge.
 - **Spec traceability.** When an AC implements or enforces a `protocol-v1.md` rule, cite the
   section. When the issue changes the spec, say so in Scope.
-- **Concrete testing sections.** Name the targeted Gradle command
+- **Concrete test commands.** In `## What done looks like`, name the targeted Gradle command
   (`./gradlew :bend-protocol:test --tests 'net.onestorm.bend.protocol.codec.VarInt28FrameDecoderTest' --rerun`)
   and the test class, not "make sure it works". `./gradlew build` is the cross-module gate;
   name it only when the change spans modules.
@@ -199,7 +233,7 @@ done looks like, at the level appropriate to the task:
 ### Avoid
 
 - Implementation details in the body, unless a bug's cause requires them.
-- Testing sections like "make sure it works" or "all tests keep passing".
+- A shallow `## What done looks like`, such as "make sure it works" or "all tests keep passing".
 - Vague criteria ("must be fast", "must be robust").
 - Defensive checks for cases the code can't produce as AC: an unreachable branch is deleted,
   not specified (see CLAUDE.md, "Testing / coverage").
@@ -245,7 +279,7 @@ decided to resend the whole set (not a delta) on each trigger.
 - unregister handling (separate issue)
 - server-side acknowledgement timeout
 
-## Testing
+## What done looks like
 - `./gradlew :bend-client-netty:test --tests 'net.onestorm.bend.client.netty.SupportedEndpointsTest' --rerun`
 - `EmbeddedChannel` tests asserting the outbound packets, e.g.
   `availableEndpoints_registeredSubset_sendsIntersection`
@@ -279,7 +313,7 @@ decoder's `catch (Exception e)` does not catch.
 **Out:**
 - requiring canonical VarInt encoding (declined, see CLAUDE.md)
 
-## Testing
+## What done looks like
 - `./gradlew :bend-protocol:test --tests 'net.onestorm.bend.protocol.util.ProtocolUtilTest' --rerun`
 - red to green: `readVarIntArray_lengthExceedsReadable_throws`
 ```
