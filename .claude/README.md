@@ -14,7 +14,12 @@ Claude Code skill catalog of Script Development. Many thanks to its authors.
 - The first import commit on this repo contains them unmodified; every later
   change is Bend's own adaptation (Java 25 / Gradle, Windows, Kendo project
   `BD`, `docs/issues/<branch>/` planning folders, no CI, no worktrees).
-- To pick up upstream improvements, diff upstream from `f0c3fb8` and port the
+- Synced by hand up to
+  [`92f98ad`](https://github.com/script-development/claude/commit/92f98ad):
+  the kendo-mcp tool surface, issue templates ending in `## What done looks
+  like` (without upstream's `Browser look:` line, Bend has no UI), and
+  `verify-citations.sh` failing closed on empty or unreadable input.
+- To pick up upstream improvements, diff upstream from `92f98ad` and port the
   changes by hand. This is a fork, not a vendored dependency.
 
 ## Workflow
