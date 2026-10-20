@@ -40,15 +40,16 @@
 **Rejected:**
 - Changing the rule in this issue: it spreads a client-api issue across the spec and `protocol`.
 
-## D5: The limit and pattern live in one place each, and tests derive from them
+## D5: The limit is private; the test pins the spec value on its own
 **Status:** Accepted
 
 **Context:** The rule now exists in `Endpoint` and in `NamespacedId`, and BD-0009 will change both.
 
-**Decision:** `NamespacedId` holds the limit as a package-private `MAXIMUM_LENGTH` constant and the rule as one pattern; `NamespacedIdTest` builds its boundary ids from `MAXIMUM_LENGTH`, so changing the number is one edit.
+**Decision:** `NamespacedId` holds the limit as a `private` `MAXIMUM_LENGTH` (as `Endpoint` does) and the rule as one pattern. `NamespacedIdTest` declares its own `MAXIMUM_LENGTH = 64` from the spec, so a changed limit in the class fails the boundary tests instead of moving with them.
 
 **Rejected:**
-- A public constant: it would put the number into the API contract for no caller.
+- A public constant: puts the number in the API contract for no caller, and javac inlines it into callers, so a later change would not reach code compiled against the old value.
+- Package-private so the test reads it: widens access only for tests, and a test derived from the constant cannot catch a wrong constant.
 
 ## D6: Bad format raises `IllegalArgumentException`, `null` raises `NullPointerException`
 **Status:** Accepted

@@ -11,10 +11,10 @@
 - Why NOT reuse `protocol`'s `Endpoint`: `client-api` depends on nothing (ADR 0018), and `Endpoint` throws `ProtocolException`, the wire-input exception. A bad id from an API caller is caller misuse, so `IllegalArgumentException` (D6).
 - Why NOT a record: `get` accessors match the rest of the API (D1); the worked example in the task-writer skill uses a record, this plan deliberately doesn't.
 
-- [ ] **1.1** Add `NamespacedId` to `client-api`, with its build setup and the rules it introduces
+- [x] **1.1** Add `NamespacedId` to `client-api`, with its build setup and the rules it introduces
     - **Context:**
         - **Why:** Endpoint ids reach the API as strings; an id the protocol rejects should fail at `NamespacedId.of`, not later on the wire. See D1, D2, D6.
-        - **Architecture:** `public final class NamespacedId` in `net.onestorm.bend.client.api`. Private constructor `(namespace, key)`, `static of(String id)`: `Objects.requireNonNull(id, "id")`, then `id.length() > MAXIMUM_LENGTH` → `IllegalArgumentException("Namespaced id \"" + id + "\" exceeds maximum length " + MAXIMUM_LENGTH)`, then `PATTERN.matcher(id).matches()` with `PATTERN = ([a-z0-9_-]+):([a-z0-9_-]+)`, groups 1 and 2 are namespace and key; no match → `IllegalArgumentException` naming the id and the expected form. `getNamespace()`, `getKey()`, `asString()` (`namespace + ":" + key`), `toString()` returns `asString()`, `equals`/`hashCode` over both fields. Package-private `static final int MAXIMUM_LENGTH = 64` (D5). Rule from `protocol-v1.md` § Namespaced Id/Key, unchanged (D4).
+        - **Architecture:** `public final class NamespacedId` in `net.onestorm.bend.client.api`. Private constructor `(namespace, key)`, `static of(String id)`: `Objects.requireNonNull(id, "id")`, then `id.length() > MAXIMUM_LENGTH` → `IllegalArgumentException("Namespaced id \"" + id + "\" exceeds maximum length " + MAXIMUM_LENGTH)`, then `PATTERN.matcher(id).matches()` with `PATTERN = ([a-z0-9_-]+):([a-z0-9_-]+)`, groups 1 and 2 are namespace and key; no match → `IllegalArgumentException` naming the id and the expected form. `getNamespace()`, `getKey()`, `asString()` (`namespace + ":" + key`), `toString()` returns `asString()`, `equals`/`hashCode` over both fields. `private static final int MAXIMUM_LENGTH = 64` (D5). Rule from `protocol-v1.md` § Namespaced Id/Key, unchanged (D4).
         - **Key refs:**
             - `protocol/src/main/java/net/onestorm/bend/protocol/endpoint/Endpoint.java:16-36`: the limit, the pattern, length-before-regex order and message shape to mirror (not call)
             - `protocol/src/test/java/net/onestorm/bend/protocol/endpoint/EndpointTest.java:61-80`: invalid-name cases and the `assertThatThrownBy` style
@@ -27,7 +27,7 @@
             - The 64 limit is on the full `namespace:key` string, colon included
             - Uppercase is rejected, not lowercased
             - `null` gives `NullPointerException` (from `requireNonNull`), not `IllegalArgumentException`
-            - Tests build boundary ids from `MAXIMUM_LENGTH`, never a literal 64 (D5), so BD-0009 changes one constant
+            - The test declares its own `MAXIMUM_LENGTH = 64` from the spec, never reads the class's (D5), so a changed limit fails the boundary tests
             - Javadoc on every public member, including `equals`, `hashCode`, `toString`, plus `package-info.java`
     - **Scope:** The value type, its tests, Javadoc and package doc; the `client-api` test dependency; the ADR 0018 wording (D3) and the "no Lombok in API modules" lines in `CLAUDE.md` and `client-api/CLAUDE.md` (D8). Wiring ids into registration is BD-0003.
     - **Acceptance Criteria:** AC #1, #2, #3, #4, #5
@@ -52,13 +52,26 @@
         - [ ] `./gradlew :bend-client-api:test --tests 'net.onestorm.bend.client.api.NamespacedIdTest' --rerun` passes
         - [ ] No Lombok/jspecify: `./gradlew :bend-client-api:dependencies --configuration compileClasspath` and `--configuration runtimeClasspath` both print "No dependencies"
         - [ ] `matches()` not `find()`: `"a:b:c"` case in `of_invalidFormat_throws`
-        - [ ] Full-string limit: `of_exactlyMaximumLength_accepted` / `of_overMaximumLength_throws`, both built from `MAXIMUM_LENGTH`
+        - [ ] Full-string limit: `of_exactlyMaximumLength_accepted` / `of_overMaximumLength_throws`, both built from the test's own `MAXIMUM_LENGTH = 64`
         - [ ] Uppercase rejected: `"A:b"` and `"a:B"` cases
         - [ ] Null: `of_null_throws` asserts `NullPointerException`
         - [ ] Every invalid case in `EndpointTest` (no colon, uppercase, too long) has a counterpart in `NamespacedIdTest`
         - [ ] Javadoc: `./gradlew :bend-client-api:javadoc` prints no "no comment" warning (first confirm JDK 25 javadoc reports missing comments by default; if not, run it once with `-Xdoclint:all`)
         - [ ] ADR 0018 bullet 3 no longer names direction; both CLAUDE.md files carry the D8 line with a root-relative link and no em dash
     - **Success:** `NamespacedId` validates exactly like `Endpoint`, compares by value, is fully documented, and `client-api` still has no main dependencies
+    - **Completed:** 2026-10-20
+    - **Learnings:**
+        - JDK 25's javadoc reports `warning: no comment` for a public member without Javadoc by default, no `-Xdoclint` flag needed: confirmed by deleting `getKey()`'s comment (flagged at line 67) and restoring it. So `./gradlew :bend-client-api:javadoc` is a real check; useful input for BD-0010.
+        - The `WARNING: A restricted method in java.lang.System...` lines in Gradle output come from Gradle's native-platform loader, not from javadoc; only `warning: no comment`-style lines count.
+        - JUnit's params support needs no extra dependency: the root `useJUnitJupiter(...)` brings it, as in `protocol`.
+        - Capture groups in the pattern give the two halves straight from `matches()`, so there's no separate `split(":")` to get wrong.
+    - **Key Changes:**
+        - Modified `client-api/build.gradle.kts`: `testImplementation(libs.assertj.core)` only
+        - Created `client-api/src/main/java/net/onestorm/bend/client/api/NamespacedId.java`: validated, immutable value type with Javadoc
+        - Created `client-api/src/main/java/net/onestorm/bend/client/api/package-info.java`: package Javadoc
+        - Created `client-api/src/test/java/net/onestorm/bend/client/api/NamespacedIdTest.java`: 8 test methods, 19 test runs
+        - Modified `docs/decisions/0018-client-built-by-implementation-builder.md`: Decision bullet 3 no longer names a direction type (D3)
+        - Modified `CLAUDE.md` § API design decisions and `client-api/CLAUDE.md`: no Lombok in API modules (D8)
 
 - [ ] **1.2** Final verification
     - **Verify:**

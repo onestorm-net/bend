@@ -16,7 +16,7 @@ A client author can name an endpoint only with an id the protocol accepts, becau
 | Type shape | `public final class NamespacedId`, private constructor, `getNamespace()`, `getKey()`, `asString()`; `toString()` returns `asString()`; `equals`/`hashCode` over namespace and key (D1) | `get` accessors as in `protocol/src/main/java/net/onestorm/bend/protocol/endpoint/Endpoint.java` (Lombok `@Getter`: `getId()`, `getName()`) |
 | Construction | `public static NamespacedId of(String id)` only (D2) | Static factory named `of`, as `Endpoint#of`; one-argument because callers (BD-0003, planned) register by `String` id |
 | The rule | Length check `id.length() > MAXIMUM_LENGTH` (64) first, then one pattern `([a-z0-9_-]+):([a-z0-9_-]+)` whose two groups are the namespace and key (D4) | `Endpoint#MAXIMUM_NAME_LENGTH`, `Endpoint#NAMESPACED_ID_PATTERN`; `protocol/protocol-v1.md` § Namespaced Id/Key |
-| Limit constant | Package-private `static final int MAXIMUM_LENGTH = 64`; tests derive boundaries from it (D5) | Deliberate: there is no client-api precedent yet; keeps the number out of the API contract |
+| Limit constant | `private static final int MAXIMUM_LENGTH = 64`; the test declares its own `64` from the spec (D5) | `Endpoint#MAXIMUM_NAME_LENGTH` is `private` too |
 | Bad input | `IllegalArgumentException` naming the id; `null` → `NullPointerException` via `Objects.requireNonNull` (D6) | CLAUDE.md § API design decisions (ADR 0011: caller misuse at setup time is `IllegalArgumentException`) |
 | Package | `net.onestorm.bend.client.api`, with a `package-info.java` | Package used by the pre-migration client-api; mirrors `net.onestorm.bend.protocol.*` |
 | Dependencies | `client-api/build.gradle.kts` adds only `testImplementation(libs.assertj.core)`; JUnit comes from the root `testing.suites` block | `client-api/CLAUDE.md` ("Depends on nothing"), `build.gradle.kts` (`useJUnitJupiter`), `protocol/build.gradle.kts` (`testImplementation(libs.assertj.core)`) |
@@ -152,8 +152,8 @@ One PR. Run: `./gradlew :bend-client-api:test --tests 'net.onestorm.bend.client.
 |---|---|---|
 | `of_validId_exposesParts` | `of("bend:chat")` gives namespace `bend`, key `chat`, `asString()` and `toString()` `bend:chat` | the split is off by one, or the halves are swapped |
 | `of_allAllowedCharacters_accepted` | `of("az09_-:az09_-")` is accepted, with its parts intact | an allowed character class (digit, `_` or `-`) is missing from the pattern |
-| `of_exactlyMaximumLength_accepted` | An id of exactly `MAXIMUM_LENGTH` characters (`"a".repeat(MAXIMUM_LENGTH - 2) + ":b"`) is accepted | the check is `>=` instead of `>` |
-| `of_overMaximumLength_throws` | `MAXIMUM_LENGTH + 1` characters throws `IllegalArgumentException` containing "maximum length" | the length check is missing or uses the wrong bound |
+| `of_exactlyMaximumLength_accepted` | An id of exactly 64 characters (the test's own `MAXIMUM_LENGTH`, `"a".repeat(MAXIMUM_LENGTH - 2) + ":b"`) is accepted | the check is `>=` instead of `>`, or the class's limit is below 64 |
+| `of_overMaximumLength_throws` | 65 characters throws `IllegalArgumentException` containing "maximum length" | the length check is missing, or the class's limit is above 64 |
 | `of_invalidFormat_throws` (`@ParameterizedTest`, `@ValueSource`) | `""`, `":"`, `"a:"`, `":b"`, `"ab"`, `"a:b:c"`, `"A:b"`, `"a:B"`, `"a b:c"`, `"a.b:c"`, `"a:b/c"`, `"é:b"` each throw `IllegalArgumentException` containing the id | the pattern allows an empty half, a second colon, uppercase, a space, `.`, `/` or non-ASCII |
 | `of_null_throws` | `of(null)` throws `NullPointerException` | null reaches `length()` with a less useful message, or is turned into `IllegalArgumentException` |
 | `equals_sameValue_equalWithSameHashCode` | Two `of("bend:chat")` instances are equal with equal hash codes | `equals`/`hashCode` are left as identity |
