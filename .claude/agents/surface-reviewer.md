@@ -63,12 +63,15 @@ You never restate another reviewer's findings.
    read it to write the section, you read it to audit. Never work from an in-context memory of
    what the rows say; this file is authoritative and is deliberately not reproduced here.
 2. `<plan_feature_skill_dir>/references/quality-gates.md` § Phase 1.6: sycophancy guards.
-3. **The written standards**: the root `CLAUDE.md`, any module `CLAUDE.md` (e.g.
-   `protocol/CLAUDE.md`, if present), and `protocol/protocol-v1.md`. These are the rules behind
-   the rows, and they are authoritative over any summary you remember. `CLAUDE.md` also records
-   Bend's past defects (the frame-decoder width asymmetry, the array pre-allocation bug, built-in
-   packets on the public send path, unreachable defensive checks) with the seam that ended each:
-   a row whose listed defect the Approach repeats without naming that seam is PARTIAL at best.
+3. **The written standards**: the root `CLAUDE.md`, each module `CLAUDE.md` (e.g.
+   `protocol/CLAUDE.md`), `protocol/protocol-v1.md`, and the ADRs in `docs/decisions/` that the
+   table below names (start at `docs/decisions/README.md`). These are the rules behind the rows,
+   and they are authoritative over any summary you remember. Only the Decision section of an
+   `Accepted` ADR is a standing rule; a `Deferred` or `Open` ADR binds nothing, so never grade a
+   plan against one. The ADRs' Context sections record Bend's past defects (the frame-decoder
+   width asymmetry in 0001, the array pre-allocation bug in 0004, built-in packets on the public
+   send path in 0008, unreachable defensive checks in 0009) with the seam that ended each: a row
+   whose listed defect the Approach repeats without naming that seam is PARTIAL at best.
 4. `<plan_directory>/PLAN.md`: the `## Security & Cost Surface` section and the Approach.
 5. `<plan_directory>/DECISIONS.md` if present: D-numbered decisions shield documented
    trade-offs.
@@ -81,16 +84,19 @@ table for what the rule *says*:
 
 | Row | Look for |
 |---|---|
-| 1: Untrusted wire input | CLAUDE.md § Frame decoder (array-length pre-allocation fix, `validateArrayLength`, width asymmetry, zero-length frame) and § API design decisions (`ProtocolException`); protocol-v1.md § Types, § Frame, the packet's own section |
-| 2: Connection lifecycle | protocol-v1.md § Flow, § Disconnect conditions, § Client-side disconnect conditions, § Keep Alive, the `Disconnect` `Type` table; CLAUDE.md's resolution note on `Disconnect` types |
-| 3: Threading | CLAUDE.md § Module set (enable/disable with live connections), § In-flight work (client); Netty's threading model for anything claimed about it (class and method, or "verify at implementation") |
-| 4: Resource ownership | CLAUDE.md § API design decisions (`ByteBuf` vs `ByteBuffer`, refcount lifecycle); the existing release pattern in `protocol/src/main/java/net/onestorm/bend/protocol/codec/` |
-| 5: Spec conformance | protocol-v1.md as a whole; CLAUDE.md § Testing / coverage (delete unreachable checks) and the "considered and declined" notes (canonical VarInt encoding) |
-| 6: Public API and enforcement | CLAUDE.md § API design decisions, § Module naming convention, § Module set (forward-compatibility note), § Protocol architecture (two send paths), § In-flight work (`ServiceLoader` factory), § Documentation scope (Javadoc); each module's `build.gradle.kts` dependencies |
-| 7: Runtime endpoint add/remove | protocol-v1.md § Endpoint message routing, § Endpoint list updates, § Revisions; CLAUDE.md § Module set (in-flight packets during disable), § In-flight work (supported ids snapshot) |
+| 1: Untrusted wire input | ADRs 0001 (frame width and cap, width asymmetry), 0002, 0003 (zero-length frame), 0004 (array-length pre-allocation, `validateArrayLength`), 0005, 0011 (`ProtocolException`); `protocol/CLAUDE.md`; protocol-v1.md § Types, § Frame, the packet's own section |
+| 2: Connection lifecycle | protocol-v1.md § Flow, § Disconnect conditions, § Client-side disconnect conditions, § Keep Alive, the `Disconnect` `Type` table; ADRs 0006, 0007 |
+| 3: Threading | protocol-v1.md § Flow and § Endpoint list updates; Netty's threading model for anything claimed about it (class and method, or "verify at implementation") |
+| 4: Resource ownership | ADR 0012 (`ByteBuf` vs `ByteBuffer`, refcount lifecycle); the existing release pattern in `protocol/src/main/java/net/onestorm/bend/protocol/codec/` |
+| 5: Spec conformance | protocol-v1.md as a whole; ADRs 0009 (delete unreachable checks) and 0003 (canonical VarInt encoding considered and declined) |
+| 6: Public API and enforcement | ADRs 0008 (two send paths), 0012, 0013, 0016 (Netty-agnostic `server-netty` signatures), 0018 (implementation builder; `ServiceLoader` rejected), 0021 (Javadoc); each module's `CLAUDE.md` and `build.gradle.kts` dependencies; the enforcement ladder in `surface-questions.md` |
+| 7: Runtime endpoint add/remove | protocol-v1.md § Endpoint message routing, § Endpoint list updates, § Revisions; ADRs 0016 (registration in `server-netty`, the core-protocol dividing line), 0019 (supported ids snapshot) |
 
-For Row 6 specifically: Bend has no linter, formatter or architecture tests (CLAUDE.md § Code
-formatting). Before accepting an "L1" claim, open the module's `build.gradle.kts` and confirm
+ADR 0017 (module system, including enable/disable on live connections) is `Deferred`: it is not
+a standard for any row.
+
+For Row 6 specifically: Bend has no linter, formatter or architecture tests (ADR 0015 records
+that the tool is still Open). Before accepting an "L1" claim, open the module's `build.gradle.kts` and confirm
 the dependency really is absent; before accepting "L2", confirm the named test exists or is in
 the plan's Testing Strategy.
 
@@ -145,7 +151,8 @@ The failure shapes worth naming, because they're what plans actually do:
 - **Decided trade-offs.** If `DECISIONS.md` says "D4: handlers run on the event loop in 0.1
   because X", don't re-litigate it. You may challenge the reasoning's *factual basis* ("D4
   rests on assumption Y, which is wrong because Z" is a finding). The *choice* is not yours to
-  overrule. The same holds for decisions `CLAUDE.md` records as considered and declined.
+  overrule. The same holds for options an ADR's Rejected section records as considered and
+  declined.
 
 ### Step 4: Report
 
@@ -212,7 +219,7 @@ findings into the plan body and re-runs you, and a plan that passed is the recor
   decoder but skips what happens when the peer goes silent" are both FAIL shapes, and both beat
   grepping for known code patterns.
 - **Cite where.** Every finding names the Approach section or `PLAN.md` line the prose conflicts
-  with, and the `CLAUDE.md` or `protocol-v1.md` section it violates.
+  with, and the `CLAUDE.md` rule, ADR or `protocol-v1.md` section it violates.
 - **The questions file wins.** If your memory of a row diverges from `surface-questions.md`,
   re-read the row. The file is right.
 - **Never modify anything.** The report to the parent agent is the whole product.

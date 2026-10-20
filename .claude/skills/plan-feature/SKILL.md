@@ -49,9 +49,12 @@ canonical domain terms and the aliases to avoid.
 
 ## Phase 1: Research before asking
 
-Read `CLAUDE.md` at the repo root (and any module `CLAUDE.md`, e.g. `protocol/CLAUDE.md`, if one
-exists). It is where Bend's design decisions and layer rules live, with the reasoning behind
-them. Read `protocol/protocol-v1.md` whenever the feature touches anything on the wire.
+Read `CLAUDE.md` at the repo root and the module `CLAUDE.md` of every module the feature
+touches (e.g. `protocol/CLAUDE.md`), plus `docs/decisions/README.md` and the ADRs those rules
+link for the areas the feature touches. CLAUDE.md holds the rules; the ADRs hold the reasoning
+and the rejected alternatives. Only an `Accepted` ADR's Decision section binds: never plan
+toward a `Deferred` or `Open` ADR. Read `protocol/protocol-v1.md` whenever the feature touches
+anything on the wire.
 
 If the repo has a root `CONTEXT.md` glossary, it is the vocabulary contract for this whole
 session. If the developer uses a term that conflicts with the glossary, call it out and resolve
@@ -134,7 +137,8 @@ Fold or expand any shallow-and-suspect class before continuing. The two fixes (d
 
 **Before proposing where classes live, check the layer rules.** Bend has no architecture tests;
 the rules live in `CLAUDE.md` (Module naming convention, Module set, API design decisions,
-Protocol architecture), which is the source of truth. Read it, don't rely on this summary:
+Protocol architecture) and the module `CLAUDE.md` files, with reasoning in the linked ADRs;
+they are the source of truth. Read them, don't rely on this summary:
 
 - `client-api` (and the future `server-api`) exposes no Netty types: no `ByteBuf`, no
   `Channel`, no `ChannelFuture`. Use `java.nio.ByteBuffer` at the boundary and convert inside
@@ -186,7 +190,7 @@ Three claim shapes the script can't resolve, which you still owe by hand:
 | Check | What | How |
 |---|---|---|
 | **Framework / library behaviour** | Every claim of the form "Netty does X" (`ByteToMessageDecoder` never calls `decode()` with an empty buffer, a handler's `channelInactive` fires after `exceptionCaught`, `writeAndFlush` releases the message on failure) | Cite the Netty 4.x class and method, ideally as a GitHub URL at the release tag `gradle/libs.versions.toml` pins (`https://github.com/netty/netty/blob/netty-<version>/<path>#L<line>`), or weaken the claim to "verify at implementation time." The resolver reports Netty classes as MISSING on purpose: they aren't in this repo. No vibes on framework behaviour. |
-| **Symbol-removal blast radius** | Every symbol you plan to delete or rename (packet class, codec, `ProtocolUtil` method, public API type, spec term) | `grep -rn <symbol>` across every module's `src/`, `protocol/protocol-v1.md` and `CLAUDE.md`, and **inspect every hit**, not just the ones from the obvious feature path. The third callsite always lives somewhere unexpected (often a test helper, or the spec text). |
+| **Symbol-removal blast radius** | Every symbol you plan to delete or rename (packet class, codec, `ProtocolUtil` method, public API type, spec term) | `grep -rn <symbol>` across every module's `src/`, `protocol/protocol-v1.md`, every `CLAUDE.md` and `docs/decisions/`, and **inspect every hit**, not just the ones from the obvious feature path. The third callsite always lives somewhere unexpected (often a test helper, or the spec text). |
 | **Added-rule sweep inventory** | Every cross-cutting rule the plan **adds**: a length check every array reader must run, a disconnect every timeout path must send, a validation every packet decoder must call, a release every handler that consumes a `ByteBuf` must do | `grep -rn` the sibling population (every packet class, every reader in `ProtocolUtil`, every handler) and carry **every hit** into PLAN.md's `## Sweep Inventory`, each marked Applied or `Skipped: <reason>`. The blast-radius row covers what you remove; this row covers what you add. The array pre-allocation bug is the shape: `readString` had the guard, the two array readers didn't. |
 
 Reviewers catch unverified confident claims; they will NOT reliably catch hedged ones. So anything you couldn't verify gets written as "verify at implementation time", not asserted.
@@ -202,7 +206,7 @@ Load [`references/quality-gates.md`](references/quality-gates.md) for the ration
 | **Goal**: one sentence the developer would re-read and agree with | ✓ / ? / ✗ | issue body / first prompt (quote the line) |
 | **Acceptance criteria**: testable, observable, distinct from the goal (≥ 3) | ✓ / ? / ✗ | issue body (quote each, or mark missing) |
 | **In-scope**: explicit file list or module boundary | ✓ / ? / ✗ | issue body / prompt / Phase 1b research |
-| **Out-of-scope**: at least one explicit non-goal | ✓ / ? / ✗ | usually missing; interrogate (CLAUDE.md's "Deferred to 0.2+" list is a common source) |
+| **Out-of-scope**: at least one explicit non-goal | ✓ / ? / ✗ | usually missing; interrogate (`Deferred` ADRs such as 0017, the module system, are a common source of things to rule out, never of things to build toward) |
 | **Edge cases**: malformed or hostile input, timeouts, disconnect mid-flow, concurrent register/unregister, limits | ✓ / ? / ✗ | usually missing; interrogate with concrete cases drawn from Phase 1b |
 | **Architecture fit**: which existing code does this resemble; what gets reused | ✓ / ? / ✗ | Phase 1b/1c findings (cite file paths) |
 | **Module shape**: every new in-scope class has the **shallow-test reckoning** filled in (not just a "Deep" label); any shallow-and-suspect class has been demoted or promoted | ✓ / ? / ✗ | Phase 1d output; a row that says "Deep" without showing the "method or parameter for the next use case?" reckoning counts as ✗, not ✓ |
@@ -219,7 +223,7 @@ Output the table verbatim to the developer with marks and citations filled in. I
 
 Produce a `## Security & Cost Surface` section in PLAN.md with **seven prose paragraphs**, each answering the questions for one row and ending with its Proof line, or `N/A: <one-line reason>` when no question on the row applies. **You may not proceed past Phase 1.6 with any unanswered question on a populated row.**
 
-The canonical questions and worked examples live at [`references/surface-questions.md`](references/surface-questions.md); load it now. It is the single source of truth shared with the `surface-reviewer` agent at Phase 5. The rows are deliberately question-shaped, not field-shaped, so they generalise to feature shapes not seen yet. The hazard classes they ask about come from Bend's own history, recorded in `CLAUDE.md` (the frame-decoder width asymmetry, the array pre-allocation bug, the built-in packets sent through the public send path, the unreachable "defensive" checks): a row whose hazard the feature repeats needs an answer that names the seam that ends it, not a generic one.
+The canonical questions and worked examples live at [`references/surface-questions.md`](references/surface-questions.md); load it now. It is the single source of truth shared with the `surface-reviewer` agent at Phase 5. The rows are deliberately question-shaped, not field-shaped, so they generalise to feature shapes not seen yet. The hazard classes they ask about come from Bend's own history, recorded in the Context of the ADRs in `docs/decisions/` (the frame-decoder width asymmetry in 0001, the array pre-allocation bug in 0004, the built-in packets sent through the public send path in 0008, the unreachable "defensive" checks in 0009): a row whose hazard the feature repeats needs an answer that names the seam that ends it, not a generic one.
 
 Unit tests of individual packets do not cover this. They cover *code shape*, not the flow of untrusted bytes into an allocation, what a silent peer does to a connection, which thread a handler runs on, or who releases a buffer. [`references/quality-gates.md`](references/quality-gates.md) carries the rationale and the sycophancy guards (paraphrasing the questions back is THIN, not OK; a feature that reads anything off the wire cannot mark Row 1 N/A).
 

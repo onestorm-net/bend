@@ -8,7 +8,7 @@ Read the issue's *Expected behaviour* / *Steps to reproduce* section against the
 
 - A bullet says "X should be accepted" but `protocol-v1.md` says a reader MUST disconnect on X (e.g. a frame whose length decodes to `0`, more than 16 consecutive NUL padding bytes). The bullet may be a request to change the spec, not a bug.
 - A bullet uses a name that resembles a code identifier but means something different to the reporter (e.g. "available endpoints" meaning "what I registered", while `AvailableEndpointsPacket` is what the server advertises).
-- A bullet contradicts a recorded ruling in `CLAUDE.md` (e.g. asking for non-canonical VarInts to be rejected, which was considered and deliberately declined).
+- A bullet contradicts a recorded ruling in `CLAUDE.md` or an `Accepted` ADR (e.g. asking for non-canonical VarInts to be rejected, which ADR 0003 considered and deliberately declined).
 - Two bullets contradict each other under realistic usage.
 
 If you spot any of these, **do not write failing tests yet**. Surface the contradiction to the developer in plain prose and ask which model is canonical:

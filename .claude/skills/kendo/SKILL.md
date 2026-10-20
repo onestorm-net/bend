@@ -98,7 +98,7 @@ none, or more than one, is refused.
 | `mcp__kendo__untick-epic-wish-tool` | Untick one Done when wish; clears who and when |
 
 An issue joins an epic via `epic_id` on create/update. Don't create an epic with nothing to
-attach to it (CLAUDE.md records why there is no `Protocol` epic).
+attach to it (ADR 0023 records why there is no `Protocol` epic).
 
 ### Sprints
 

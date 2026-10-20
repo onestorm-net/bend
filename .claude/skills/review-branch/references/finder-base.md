@@ -33,7 +33,7 @@ cannot point at.
 
 Bend is a Netty client/server framework over a custom wire protocol (`protocol/protocol-v1.md`).
 The peer on the other end of the socket is untrusted in both directions. Rows marked *(shipped)*
-are real bugs from this repo's history, recorded in `CLAUDE.md`.
+are real bugs from this repo's history, recorded in the Context of the ADRs in `docs/decisions/`.
 
 | Shape | What ends it |
 |---|---|
@@ -49,7 +49,7 @@ are real bugs from this repo's history, recorded in `CLAUDE.md`.
 | A `ChannelFuture` from a write or close with no listener | A listener that handles failure, or an explicit decision that the failure is irrelevant |
 | An endpoint unregistered while messages for it are in flight or mid-dispatch | Defined behaviour for the in-flight message, and `Available Endpoints` re-advertised |
 | Spec vs implementation drift: a `protocol-v1.md` MUST or disconnect condition the code does not enforce, or code enforcing what the spec never says | The rule implemented with a test, or the spec changed in the same diff |
-| An unreachable "defensive" check (a dead guard kept "just in case", or a contrived test written to turn it green) | Delete it; re-add it with a real test when a change makes it reachable (`CLAUDE.md`, Testing / coverage) |
+| An unreachable "defensive" check (a dead guard kept "just in case", or a contrived test written to turn it green) | Delete it; re-add it with a real test when a change makes it reachable (`CLAUDE.md`, Testing / coverage; ADR 0009) |
 | Netty or `ByteBuf` types in `client-api` (or the future `server-api`), or `client-api` depending on another module | `java.nio.ByteBuffer` at the API boundary; conversion only inside the `-netty` modules |
 
 ## Accepted failures

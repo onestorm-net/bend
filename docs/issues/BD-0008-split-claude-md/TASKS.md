@@ -128,7 +128,7 @@ untracked 740-line CLAUDE.md, with every decision kept and every citation still 
         - Modified `.gitignore`: no longer ignores `CLAUDE.md`
         - `MAPPING.md`: all 92 rows ticked
 
-- [ ] **1.4** Citation sweep in `.claude/` and build scripts
+- [x] **1.4** Citation sweep in `.claude/` and build scripts
     - **Context:**
         - **Why:** Skills and reviewer agents cite CLAUDE.md sections and describe it as holding history and declined alternatives; after 1.3 that content lives in ADRs (D6, D8, D10).
         - **Architecture:** Follow PLAN.md step 7's five groups: read `docs/decisions/` and respect Status; role descriptions; the surface-reviewer row table with `Accepted` ADR numbers only; history citations repointed; kept headings; plus the three `build.gradle.kts` comments.
@@ -153,6 +153,16 @@ untracked 740-line CLAUDE.md, with every decision kept and every citation still 
         - [ ] Moved-content headings: no citation of `§ Module set (` remains
         - [ ] Check 10 over `.claude/` and `*/build.gradle.kts` prints nothing
     - **Success:** Every CLAUDE.md citation in the repo resolves; the reviewer agents read `docs/decisions/` and honour Status.
+    - **Completed:** 2026-10-20
+    - **Learnings:**
+        - All three `build.gradle.kts` files contained only their status comment, and all three had an em dash (the plan only named `server-netty`'s). Deleting the lines left empty files, so `sed '1i'` inserted nothing; a shell redirect was blocked as an overwrite, so the pointer comments were written with the file tools.
+        - A citation-check regex over `§ <heading>` picks up trailing prose; the real stray was `surface-questions.md:90` citing `§ Testing` without `/ coverage`.
+        - Line numbers had already drifted in `plan-feature/SKILL.md` after its first edit; editing by exact text, not line number, avoided it.
+    - **Key Changes:**
+        - Reviewer agents (`plan-reviewer`, `precedent-reviewer`, `surface-reviewer`) and `recorded-rulings.md` read `docs/decisions/`, treat only `Accepted` Decision sections as rulings, and cite ADR numbers; surface-reviewer's row table names ADRs and excludes 0017 (D10)
+        - `plan-reviewer.md`: next consumers come from open 0.1 issues, never a Deferred ADR (D8)
+        - `plan-feature` SKILL and references, `fix-bug`, `kendo`, `review-branch` SKILL and `finder-base.md`: history and role citations repointed to ADRs
+        - `client-api`, `client-netty`, `server-netty` `build.gradle.kts`: status comment replaced by a pointer to the module's CLAUDE.md
 
 - [ ] **1.5** Final verification
     - **Verify:**

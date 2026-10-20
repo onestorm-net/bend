@@ -87,7 +87,7 @@ Questions:
 - Which MUST, MUST NOT, SHOULD and disconnect rules in `protocol-v1.md` does this feature implement or touch? Quote them by section.
 - For each rule: is it enforced on **both** sides that the spec binds (the server-side Disconnect conditions and the Client-side disconnect conditions are separate lists), and where in the code?
 - Does the feature change the wire format or a rule? Then name the exact `protocol-v1.md` edit (section and new text), whether the change is backwards-compatible with a peer on the current spec, and whether it needs a protocol version bump in `Handshake`.
-- Does the plan add a check that the current code cannot reach? Bend's rule (CLAUDE.md § Testing): an unreachable "defensive" check is deleted, not kept. Show the input that reaches it, or drop it.
+- Does the plan add a check that the current code cannot reach? Bend's rule (CLAUDE.md § Testing / coverage, ADR 0009): an unreachable "defensive" check is deleted, not kept. Show the input that reaches it, or drop it.
 - Conversely, does the plan rely on a property the spec leaves open (canonical VarInt encoding, which side sends first after an update) without writing it down?
 
 *Strong answer:* "Implements protocol-v1.md § Endpoint list updates: 'Before sending the updated list, the sender MUST stop sending `Endpoint Message`s on any removed endpoints.' Server side: `EndpointRegistry#unregister` removes the id from the outbound send set before `AvailableEndpointsPacket` is written (same event-loop task). Client side is out of scope (BD-0015). No wire change, no spec edit, no version bump. Proof: `ServerEndpointRegistryTest#unregister_thenSend_rejectsBeforeListIsWritten`."

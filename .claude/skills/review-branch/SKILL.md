@@ -29,7 +29,7 @@ chat. The parent session sees them and decides what to do.
   never take?* Runtime-state simulation, Sins of omission, Test disciplines (diff-gated on
   test files), plus the correctness lane focus.
 - **`precedent-reviewer`**: *Does this match what's already written down?* Recorded rulings
-  (`CLAUDE.md`, `protocol/protocol-v1.md`), Sibling precedent.
+  (`CLAUDE.md`, the ADRs in `docs/decisions/`, `protocol/protocol-v1.md`), Sibling precedent.
 
 The finder contract every lane follows (context, Bend's hazards and accepted failures, the
 finding shape, the three tags, method, voice) is

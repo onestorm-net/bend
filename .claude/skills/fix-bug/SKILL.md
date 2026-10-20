@@ -305,9 +305,10 @@ before a readable check), surface it via `AskUserQuestion`:
 If "yes," file it as a Kendo issue with the specific pointer, or hand it to
 `/plan-feature`. A concrete starting point beats "improve something."
 
-Also ask whether the bug's lesson belongs in `CLAUDE.md` (a new ruling, or a
-history entry beside the existing frame-decoder ones). That file is where
-Bend records why things are built the way they are.
+Also ask whether the bug's lesson is a lasting rule. If it is, record the
+reasoning in the branch's `DECISIONS.md` (or update the ADR it changes, under
+`docs/decisions/`) and add a one-line rule to the matching `CLAUDE.md`, root or
+module. That is where Bend records why things are built the way they are.
 
 **Skip this phase entirely for path 3b mechanical fixes** (typos,
 off-by-ones, missing null checks). Asking after every trivial fix turns the

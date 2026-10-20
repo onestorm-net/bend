@@ -40,7 +40,7 @@ Examples of what belongs here:
 - Packet shape: "Lombok `@Getter @Setter @NoArgsConstructor @AllArgsConstructor` class implementing `Packet`, registered in `ProtocolV1`" → reference `KeepAlivePacket.java`
 - Bad-input exception: "`ProtocolException` on decode, `IllegalArgumentException` for a caller passing an out-of-range value at setup" → reference CLAUDE.md § API design decisions and `AbstractProtocol`
 - Payload type at the API boundary: "`java.nio.ByteBuffer`, converted in `client-netty`" → reference CLAUDE.md § API design decisions
-- Construction: "implementation builder (`NettyClient.builder()...connect()`) returning the `Client` interface" → reference CLAUDE.md § In-flight work (client)
+- Construction: "implementation builder (`NettyClient.builder()...connect()`) returning the `Client` interface" → reference CLAUDE.md § API design decisions and ADR 0018
 
 **Every choice must cite a concrete codebase reference.** If you can't point to an existing
 file or a `CLAUDE.md` decision that proves this matches the conventions, flag it as a deliberate
@@ -152,7 +152,7 @@ update" is a row, not an omission.
 |---|---|---|
 | Wire format, packet fields, limits, MUST/disconnect rules, flow | `protocol/protocol-v1.md` | |
 | New or changed public type or method in `client-api` (or `protocol`, where public) | Javadoc on that type | |
-| A design decision, layer rule, convention or module plan this feature makes, changes, deletes or renames | `CLAUDE.md` (the matching section; "Status", "In-flight work" and "Module set" go stale first) | |
+| A design decision, layer rule, convention or module plan this feature makes, changes, deletes or renames | `CLAUDE.md` (one line under the matching heading, root or module) plus the reasoning in this issue's `DECISIONS.md`, or an update to the ADR whose Decision changes | |
 
 This table asks **which** documents change. What they then *claim* is checked after the fact
 by `correctness-reviewer`'s promised-behaviour rule (Sins of omission), which runs on every

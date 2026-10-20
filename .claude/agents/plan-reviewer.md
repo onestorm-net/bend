@@ -20,9 +20,11 @@ You exist because the planner is cognitively primed to defend its own choices. Y
 
 ### Step 1: Read the conventions
 
-Read every `CLAUDE.md` in the project. The root `CLAUDE.md` is where Bend's conventions and
-layer rules live, each with the reasoning behind it; module folders may grow their own later
-(`protocol/CLAUDE.md`, `client-api/CLAUDE.md`, ...).
+Read every `CLAUDE.md` in the project. The root `CLAUDE.md` holds Bend's conventions and layer
+rules, one line each; each module folder has its own (`protocol/CLAUDE.md`,
+`client-api/CLAUDE.md`, ...). The reasoning and the rejected alternatives behind each rule are
+in the ADR it links, under `docs/decisions/` (`README.md` explains the statuses). Only the
+Decision section of an `Accepted` ADR is a convention; a `Deferred` or `Open` ADR binds nothing.
 
 ```bash
 find . -name CLAUDE.md -not -path './.git/*' -not -path '*/build/*' -not -path './.gradle/*'
@@ -51,7 +53,7 @@ Read `<plan_feature_skill_dir>/references/module-shape-lens.md` and focus on the
 2. Apply each of the three shallow-detection checks:
    - **Test #1, interface mirrors the use case:** does one method's name and parameters describe a whole use case in primitives? (e.g. `sendHandshakeAndAwaitEndpoints(String host, int port, int version, int timeoutSeconds)`.)
    - **Test #2, interface ≈ implementation per use case:** does the public surface roughly match the per-use-case workload, even if the method body is long?
-   - **Test #3, second-consumer growth shape:** would adding a plausible next consumer require adding a *method* (shallow) or a *parameter* (deep)? Force the question concretely: name an actual likely-future use case from the plan's "Out of scope" or "Risks" sections, or from CLAUDE.md's "Deferred to 0.2+" list (the module system, `server-api` extraction).
+   - **Test #3, second-consumer growth shape:** would adding a plausible next consumer require adding a *method* (shallow) or a *parameter* (deep)? Force the question concretely: name an actual likely-future use case from the plan's "Out of scope" or "Risks" sections, or from the open issues in the 0.1 epics on the tracker. Never from a `Deferred` ADR (the module system, `server-api` extraction): those bind nothing, and designing 0.1 classes around them is the over-steering the ADR statuses exist to prevent.
 3. Compute YOUR OWN verdict (deep / shallow-but-justified / shallow-and-suspect).
 4. Compare to the plan's claimed verdict.
 
@@ -69,12 +71,12 @@ A plan with any Module-Shape FAIL cannot score above 6: the author must restruct
 
 ### Step 2c: Cross-check the layer rules
 
-Bend has no architecture tests or static-analysis rules; its layer rules are written in `CLAUDE.md` and enforced by what each module's `build.gradle.kts` lets it import. For each class the plan proposes, verify:
+Bend has no architecture tests or static-analysis rules; its layer rules are written in `CLAUDE.md` (reasoning in the linked ADRs) and enforced by what each module's `build.gradle.kts` lets it import. For each class the plan proposes, verify:
 
 - **Module dependency direction.** Open the target module's `build.gradle.kts`. `client-api` depends on nothing; `client-netty` / `server-netty` may depend on their api module and on `:bend-protocol`. A plan that needs a new `implementation(...)` or `api(...)` line must say so, and that line must not point the wrong way (an api module depending on a `-netty` module, `protocol` depending on a client or server module).
-- **The `ByteBuf` boundary.** No `io.netty.*` type (`ByteBuf`, `Channel`, `ChannelFuture`, `EventLoop`) in a `client-api` (or future `server-api`) signature; payloads cross as `java.nio.ByteBuffer`, converted inside the `-netty` module. `server-netty`'s register/unregister/handler signatures stay Netty-agnostic too (CLAUDE.md § Module set, forward-compatibility note).
-- **Two send paths.** Built-in packets are written to the channel internally; only user payloads go through the public, registration-checked send path (CLAUDE.md § Protocol architecture).
-- **Construction.** A `Client` comes from the implementation's builder (`NettyClient.builder()...connect()`), which returns the `client-api` `Client` interface; the concrete class is package-private. Code that only *uses* a client depends on `client-api` alone. No `ServiceLoader` (reversed 2026-10-04, see CLAUDE.md § In-flight work (client)).
+- **The `ByteBuf` boundary.** No `io.netty.*` type (`ByteBuf`, `Channel`, `ChannelFuture`, `EventLoop`) in a `client-api` (or future `server-api`) signature; payloads cross as `java.nio.ByteBuffer`, converted inside the `-netty` module. `server-netty`'s register/unregister/handler signatures stay Netty-agnostic too (ADR 0016, `server-netty/CLAUDE.md`).
+- **Two send paths.** Built-in packets are written to the channel internally; only user payloads go through the public, registration-checked send path (CLAUDE.md § Protocol architecture, ADR 0008).
+- **Construction.** A `Client` comes from the implementation's builder (`NettyClient.builder()...connect()`), which returns the `client-api` `Client` interface; the concrete class is package-private. Code that only *uses* a client depends on `client-api` alone. No `ServiceLoader` (rejected in ADR 0018, reversed 2026-10-04).
 
 Report each in the Convention Scan table:
 
@@ -138,7 +140,7 @@ Return the full review to the parent agent using the format below.
 
 | # | Decision | Choice | Convention Match | Result |
 |---|----------|--------|-----------------|--------|
-| 1 | <from plan> | <from plan> | <what the codebase actually does: cite file:line or CLAUDE.md section> | PASS/FAIL |
+| 1 | <from plan> | <from plan> | <what the codebase actually does: cite file:line, CLAUDE.md section or ADR> | PASS/FAIL |
 
 ### Convention Scan
 
@@ -197,7 +199,7 @@ The convention score is an overall grade for how well the plan follows the codeb
 - **Do not rationalize a PASS.** If the plan puts a `ByteBuf` in a `client-api` signature, that's a FAIL. If the plan throws `IllegalArgumentException` from a packet's `decode` where its siblings throw `ProtocolException`, that's a FAIL. Period.
 - **Do not suggest design alternatives.** You report mismatches. The planner decides how to fix them.
 - **Do not judge the feature itself.** Whether the registry should be event-loop-confined or concurrent is not your concern unless CLAUDE.md decides it. You only check whether the plan follows the codebase conventions.
-- **Do not re-open declined decisions.** CLAUDE.md records alternatives that were considered and declined; a plan following the recorded decision is a PASS even if you'd have chosen differently.
+- **Do not re-open declined decisions.** Each ADR's Rejected section records alternatives that were considered and declined; a plan following the recorded decision is a PASS even if you'd have chosen differently.
 - **Cite specific files.** "Packets should use Lombok" is not evidence. "`protocol/src/main/java/net/onestorm/bend/protocol/packet/KeepAlivePacket.java` is `@Getter @Setter @NoArgsConstructor @AllArgsConstructor` implementing `Packet`" is evidence.
 
 ## Constraints
