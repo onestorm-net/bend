@@ -92,7 +92,7 @@ untracked 740-line CLAUDE.md, with every decision kept and every citation still 
         - Created `docs/decisions/0001-*.md` to `docs/decisions/0024-*.md`: 21 Accepted, 2 Deferred (0017, 0024), 1 Open (0015)
         - Modified `MAPPING.md`: 58 rows ticked; 34 rows wait on root or module CLAUDE.md lines (task 1.3)
 
-- [ ] **1.3** Module CLAUDE.md files, root CLAUDE.md, `.gitignore`
+- [x] **1.3** Module CLAUDE.md files, root CLAUDE.md, `.gitignore`
     - **Context:**
         - **Why:** The root file becomes short, current and public; module rules load only when working in that module (D4).
         - **Architecture:** Root section order per PLAN step 6, keeping the headings `.claude/` cites (D6): `Protocol architecture`, `API design decisions`, `Testing / coverage`, `Module naming convention`, `Module set`, `Build tooling`, `Documentation scope`, `Workflow`. One line per rule, linking its ADR. Includes the binding rule (D3) and how to set up and use `.claude/local-references.md` (D5).
@@ -117,6 +117,16 @@ untracked 740-line CLAUDE.md, with every decision kept and every citation still 
         - [ ] `git ls-files --error-unmatch CLAUDE.md` succeeds after the commit
         - [ ] Check 10 over the five CLAUDE.md files prints nothing
     - **Success:** Root CLAUDE.md is short and tracked; every module has its rules; module and root rows in `MAPPING.md` ticked.
+    - **Completed:** 2026-10-20
+    - **Learnings:**
+        - The same widening risk as in 1.2 shows up in one-line rules: a first draft of `protocol/CLAUDE.md` turned ADR 0004 into "validate every peer-supplied array length", and stated "100% coverage" as if it were a rule. Both narrowed back to what the ADRs decide.
+        - Root CLAUDE.md is 124 lines (was 740). Git sees it as a new file, so the staged diff is proof that no old content went in (D7).
+        - The test-convention line (JUnit Jupiter, AssertJ, `method_condition_expected`) has no ADR: it is codebase convention, already enforced by the skills.
+    - **Key Changes:**
+        - Rewrote `CLAUDE.md` (now tracked): modules, where things live, binding rule, rule groups under the cited headings, local references, writing style
+        - Created `protocol/CLAUDE.md`, `client-api/CLAUDE.md`, `client-netty/CLAUDE.md`, `server-netty/CLAUDE.md`
+        - Modified `.gitignore`: no longer ignores `CLAUDE.md`
+        - `MAPPING.md`: all 92 rows ticked
 
 - [ ] **1.4** Citation sweep in `.claude/` and build scripts
     - **Context:**
