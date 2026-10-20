@@ -30,6 +30,9 @@ client depends on `client-api` alone, which is where transport independence matt
 
 - The builder's settings or method names.
 - Whether downstream code wrapping Bend exposes only the `Client` interface; that is its choice.
+- Whether `client-api` gets a direction type. BD-0001 found nothing that would use one yet,
+  because direction is implicit in `registerIncoming`/`registerOutgoing`; an earlier version of
+  this Decision listed it among the value types.
 
 ## Rejected
 
