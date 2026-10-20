@@ -44,6 +44,7 @@ Collect these data sources simultaneously:
 | **Commits** | `git log origin/development..HEAD --oneline` | All commits on this branch |
 | **Diff stat** | `git diff origin/development...HEAD --stat` | Files changed + insertions/deletions |
 | **TASKS.md** | `<dir>/TASKS.md` | Progress: count completed vs total tasks |
+| **IMPLEMENTATION.md** | `<dir>/IMPLEMENTATION.md` | Small plans run with `/implement-plan` instead of TASKS.md: the latest dated section's changes, deviations and follow-ups |
 | **PLAN.md** | `<dir>/PLAN.md` | High-level plan summary (first ~50 lines) |
 | **BUG.md** | `<dir>/BUG.md` | Bug branches: problem, cause, and the first `**Verdict:**` under `## Verification` if present |
 | **DECISIONS.md** | `<dir>/DECISIONS.md` | Key design decisions and their status |
