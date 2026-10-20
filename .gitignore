@@ -4,7 +4,7 @@ build/
 .kotlin
 
 ### Claude Code ###
-.claude/
+.claude/settings.local.json
 CLAUDE.md
 
 ### IntelliJ IDEA ###
