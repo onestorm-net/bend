@@ -139,12 +139,15 @@ Print a summary:
 
 ```
 Issue #{issue_id} ({key}) prepared!
-  [x] Assigned to user 1
+  [x] Assigned to {assignee_name} (you)
   [x] Branch: {branch_name} (from origin/development, not pushed)
   [x] Branch linked to issue
   [x] Added to sprint {sprint}          ← only if there is an active sprint
   [x] Moved to In Progress
 ```
+
+`{assignee_name}` is `issue.assignee.name` from the `start-work-on-issue-tool` result, never the
+bare user id. The assignee is always user `1`, the developer running the skill, hence "(you)".
 
 Then suggest the next step by issue type (this skill doesn't run it):
 
