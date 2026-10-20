@@ -1,0 +1,83 @@
+# BD-0001-namespaced-id-value-type: Decisions
+
+## D1: `NamespacedId` is a final class with `get` accessors
+**Status:** Accepted
+
+**Context:** The value type could be a record or a hand-written final class.
+
+**Decision:** A final class with a private constructor, `getNamespace()`, `getKey()` and `asString()`, so the public API reads like BD-0003's `Endpoint#getId()` and `protocol`'s Lombok `getX` accessors (`Endpoint.java`).
+
+**Rejected:**
+- A record: accessors become `namespace()`/`key()`, next to `getId()` elsewhere in the API, and its canonical constructor is public.
+
+## D2: `of(String)` is the only factory
+**Status:** Accepted
+
+**Context:** BD-0003 registers endpoints by `String` id, so parsing is the one path with a caller.
+
+**Decision:** One static factory, `NamespacedId.of(String id)`. An `of(namespace, key)` can be added without breaking anything once a caller has the halves already split.
+
+**Rejected:**
+- `of(namespace, key)` now: nothing calls it.
+
+## D3: No direction type in BD-0001; whether client-api gets one stays open
+**Status:** Accepted
+
+**Context:** ADR 0018's Decision says `client-api` holds "its own small value types (namespaced id, direction)", but direction is implicit in `registerIncoming`/`registerOutgoing` (BD-0003).
+
+**Decision:** BD-0001 adds no direction type. ADR 0018's bullet keeps its point (client-api has its own value types and never reuses `protocol`'s) and names the namespaced id as the example; the direction type moves to its "Does not decide", so a later issue with a real use (e.g. a `TO_CLIENT`/`TO_SERVER`/both enum) can still add one.
+
+**Rejected:**
+- Building a direction type now to match the ADR's wording: nothing in this issue would use it.
+- Recording it under ADR 0018's Rejected: that would steer future issues away from it without a reason.
+
+## D4: The id rule stays as specified; widening it is BD-0009
+**Status:** Accepted
+
+**Context:** The 64-character limit was a placeholder, and Minecraft's identifier character set (`.` in both halves, `/` in the key) came up during planning.
+
+**Decision:** BD-0001 copies today's rule (`protocol-v1.md` § Namespaced Id/Key: `[a-z0-9_-]+:[a-z0-9_-]+`, 64 characters). The character set and the length limit are both decided in BD-0009, which must land before 0.1.
+
+**Rejected:**
+- Changing the rule in this issue: it spreads a client-api issue across the spec and `protocol`.
+
+## D5: The limit is private; the test pins the spec value on its own
+**Status:** Accepted
+
+**Context:** The rule now exists in `Endpoint` and in `NamespacedId`, and BD-0009 will change both.
+
+**Decision:** `NamespacedId` holds the limit as a `private` `MAXIMUM_LENGTH` (as `Endpoint` does) and the rule as one pattern. `NamespacedIdTest` declares its own `MAXIMUM_LENGTH = 64` from the spec, so a changed limit in the class fails the boundary tests instead of moving with them.
+
+**Rejected:**
+- A public constant: puts the number in the API contract for no caller, and javac inlines it into callers, so a later change would not reach code compiled against the old value.
+- Package-private so the test reads it: widens access only for tests, and a test derived from the constant cannot catch a wrong constant.
+
+## D6: Bad format raises `IllegalArgumentException`, `null` raises `NullPointerException`
+**Status:** Accepted
+
+**Context:** An id passed to `client-api` is caller input at setup time, not wire input.
+
+**Decision:** A malformed id throws `IllegalArgumentException` with the id in its message (CLAUDE.md § API design decisions, ADR 0011); `null` throws `NullPointerException` from `Objects.requireNonNull`, documented in the Javadoc. Uppercase is rejected, not lowercased.
+
+**Rejected:**
+- `ProtocolException`: it is the wire-input exception, and `client-api` can't see `protocol`.
+
+## D7: Javadoc is checked by hand in this issue
+**Status:** Accepted
+
+**Context:** "Every public type has Javadoc" needs a check, and the consistent Javadoc pattern itself is not decided yet.
+
+**Decision:** The acceptance check is `./gradlew :bend-client-api:javadoc` with no "no comment" warning. The pattern and any build enforcement are BD-0010.
+
+**Rejected:**
+- doclint as errors wired into `check` now: build tooling ahead of BD-0010's decision and the open ADR 0015.
+
+## D8: Lombok only in non-API modules
+**Status:** Accepted
+
+**Context:** `protocol` uses Lombok (`Endpoint`'s `@Getter`), so it is easy to assume `client-api` may too, if only as `compileOnly`.
+
+**Decision:** Lombok is for `protocol` and the `-netty` modules; an API module (`client-api`, later `server-api`) never uses it, not even `compileOnly`. Each public member is written out so it carries its own Javadoc (ADR 0021), and the source reads exactly like the API.
+
+**Rejected:**
+- `compileOnly` Lombok in `client-api`: generated members have no Javadoc, and the sources jar shows annotations instead of the methods callers use.

@@ -55,6 +55,9 @@ Each module has its own `CLAUDE.md` with the rules specific to it.
 - A `Client` comes from its implementation's builder, which returns the `client-api` `Client`
   interface; `client-api` depends on nothing.
   ([0018](/docs/decisions/0018-client-built-by-implementation-builder.md))
+- Lombok is for `protocol` and the `-netty` modules only; an API module never uses it, not even
+  `compileOnly`. (BD-0001 D8,
+  [DECISIONS.md](/docs/issues/BD-0001-namespaced-id-value-type/DECISIONS.md))
 
 ## Testing / coverage
 
