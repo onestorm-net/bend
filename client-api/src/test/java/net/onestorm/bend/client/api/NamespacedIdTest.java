@@ -78,4 +78,12 @@ class NamespacedIdTest {
         assertThat(id).isNotEqualTo(NamespacedId.of("bend:chat2"));
         assertThat(id).isNotEqualTo(NamespacedId.of("other:chat"));
     }
+
+    @Test
+    void equals_otherTypeOrNull_notEqual() {
+        NamespacedId id = NamespacedId.of("bend:chat");
+
+        assertThat(id.equals("bend:chat")).isFalse();
+        assertThat(id.equals(null)).isFalse();
+    }
 }

@@ -158,6 +158,7 @@ One PR. Run: `./gradlew :bend-client-api:test --tests 'net.onestorm.bend.client.
 | `of_null_throws` | `of(null)` throws `NullPointerException` | null reaches `length()` with a less useful message, or is turned into `IllegalArgumentException` |
 | `equals_sameValue_equalWithSameHashCode` | Two `of("bend:chat")` instances are equal with equal hash codes | `equals`/`hashCode` are left as identity |
 | `equals_differentValue_notEqual` | `bend:chat` vs `bend:chat2` and vs `other:chat` are not equal | `equals` compares only one half |
+| `equals_otherTypeOrNull_notEqual` | `equals("bend:chat")` and `equals(null)` return `false` | `equals` casts without an `instanceof` check |
 
 ## Documentation Sync
 

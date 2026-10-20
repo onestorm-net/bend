@@ -73,11 +73,17 @@
         - Modified `docs/decisions/0018-client-built-by-implementation-builder.md`: Decision bullet 3 no longer names a direction type (D3)
         - Modified `CLAUDE.md` § API design decisions and `client-api/CLAUDE.md`: no Lombok in API modules (D8)
 
-- [ ] **1.2** Final verification
+- [x] **1.2** Final verification
     - **Verify:**
         - [ ] `./gradlew build` passes
         - [ ] JaCoCo gap check: `client-api/build/reports/jacoco/test/jacocoTestReport.xml` shows no `<line>` with `mi > 0` in `NamespacedId.java`; any remaining gap traced to "is this reachable at all", then tested or deleted
     - **Success:** Full build green, `NamespacedId` fully covered or each gap explained
+    - **Completed:** 2026-10-20
+    - **Learnings:**
+        - The first gap check found `equals` lines 93-97 uncovered: the `this == other` shortcut and the `instanceof` guard. Both reachable. The shortcut was deleted rather than tested, since removing it changes no result, so a test for it could never go red (ADR 0009). The guard got `equals_otherTypeOrNull_notEqual`.
+    - **Key Changes:**
+        - Modified `NamespacedId.java`: dropped the `this == other` shortcut in `equals`
+        - Modified `NamespacedIdTest.java`: added `equals_otherTypeOrNull_notEqual` (20 test runs); `NamespacedId` now 20/20 lines, 10/10 branches
 
 ## Review Notes
 
