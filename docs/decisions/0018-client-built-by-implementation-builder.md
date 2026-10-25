@@ -16,7 +16,8 @@ reconfigure or reconnect it.
 - `client-api` holds no configuration: the `Client` interface has no `connect()` and no
   settings. A `Client` can be shared without anyone changing its settings or connecting it twice.
 - `client-api` depends on nothing: not on `protocol` (Netty-shaped throughout), not on Netty. It
-  holds interfaces and its own small value types (namespaced id, direction).
+  holds interfaces and its own small value types, such as the namespaced id; it never reuses
+  `protocol`'s types.
 - The builder's `connect()` returns the `Client` interface, and the concrete client class is
   package-private, so callers can't name or cast to it. The builder is the only `client-netty`
   type a caller touches. No JPMS is needed for this.
@@ -29,6 +30,9 @@ client depends on `client-api` alone, which is where transport independence matt
 
 - The builder's settings or method names.
 - Whether downstream code wrapping Bend exposes only the `Client` interface; that is its choice.
+- Whether `client-api` gets a direction type. BD-0001 found nothing that would use one yet,
+  because direction is implicit in `registerIncoming`/`registerOutgoing`; an earlier version of
+  this Decision listed it among the value types.
 
 ## Rejected
 
