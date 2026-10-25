@@ -19,6 +19,8 @@ Claude Code skill catalog of Script Development. Many thanks to its authors.
   the kendo-mcp tool surface, issue templates ending in `## What done looks
   like` (without upstream's `Browser look:` line, Bend has no UI), and
   `verify-citations.sh` failing closed on empty or unreadable input.
+- `implement-plan` (upstream `core-skills`) was left out of the first import and ported later
+  from `92f98ad`, adapted like the rest; small plans use it instead of `task-writer` + `next`.
 - To pick up upstream improvements, diff upstream from `92f98ad` and port the
   changes by hand. This is a fork, not a vendored dependency.
 
@@ -28,7 +30,8 @@ Claude Code skill catalog of Script Development. Many thanks to its authors.
 |---|---|
 | Pick up an issue, create and link its branch | `/prepare-issue` (or `/newbranch`) |
 | Plan a feature into `docs/issues/<branch>/PLAN.md` + `DECISIONS.md` | `/plan-feature` |
-| Break the plan into `TASKS.md` | `/task-writer` |
+| Implement a small plan (about 5 or fewer Approach steps, one module) straight from `PLAN.md` | `/implement-plan` |
+| Break a bigger plan into `TASKS.md` | `/task-writer` |
 | Implement the next task | `/next` |
 | Investigate a bug into `docs/issues/<branch>/BUG.md` | `/fix-bug` |
 | Review the branch before a PR | `/review-branch` |

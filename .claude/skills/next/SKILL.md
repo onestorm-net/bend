@@ -13,8 +13,9 @@ description: |
 Continue working through a TASKS.md file: locate it, find the next uncompleted task, execute it
 following TDD flow, and mark it done with learnings.
 
-> **No TASKS.md, just PLAN.md + DECISIONS.md?** Run `/task-writer` first. Every planned issue gets
-> a TASKS.md, even a small one; this skill only executes tasks, it doesn't plan them.
+> **No TASKS.md, just PLAN.md + DECISIONS.md?** This skill only executes tasks, it doesn't plan
+> them. A small plan (about 5 or fewer Approach steps, one module) goes to `/implement-plan`;
+> anything bigger gets `/task-writer` first.
 
 > **Review runs once per branch, not per task.** Do not spawn reviewer agents after each task;
 > per-task reviews burn tokens for near-zero signal (first-pass reviews came back clean the vast
@@ -30,7 +31,8 @@ branch name (e.g. `docs/issues/BD-0012-namespaced-id/`). Resolve it with
 
 If the folder holds `BUG.md` instead of `PLAN.md`, this is a bug branch; point the user at
 `/fix-bug` instead. If the folder has `PLAN.md` but no `TASKS.md`, point the user at
-`/task-writer`. If no folder exists, ask the user where their task file is.
+`/implement-plan` (small plan, or an `IMPLEMENTATION.md` already there) or `/task-writer`. If no
+folder exists, ask the user where their task file is.
 
 ## Step 2: Show progress and find next task
 

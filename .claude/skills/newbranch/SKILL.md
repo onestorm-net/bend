@@ -102,7 +102,9 @@ Tell the user in one concise block:
 - The branch name (local only, not pushed yet)
 - The issue key + title
 - The active sprint it was added to (or "no active sprint, skipped")
-- That the issue is assigned and now In Progress, with the branch linked
+- That the issue is assigned to the developer by name (`issue.assignee.name` from the
+  `start-work-on-issue-tool` result, never "user 1") and is now
+  In Progress, with the branch linked
 
 ## Keyless branches
 

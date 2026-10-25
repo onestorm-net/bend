@@ -3,6 +3,7 @@
 Canonical algorithm for resolving a branch's work directory, `docs/issues/<branch-name>/`, from
 the current git branch. Every skill in this repo that *finds* an existing plan or bug directory
 uses it: `catchup` to summarise the branch's artifacts; `next` to locate `TASKS.md`;
+`implement-plan` to locate `PLAN.md` and write `IMPLEMENTATION.md` alongside it;
 `task-writer` to find where `PLAN.md` already lives so it writes `TASKS.md` alongside it (falling
 back to creating the directory, see `task-writer`'s own Output section, only when the algorithm
 finds nothing); `commit` to keep `PLAN.md` / `DECISIONS.md` in step with the diff; and
@@ -34,7 +35,7 @@ Which pipeline a directory belongs to is decided by the file it holds, never by 
 
 | Directory contains | Kind | Companion files |
 |---|---|---|
-| `PLAN.md` | plan-driven branch | `DECISIONS.md`, `TASKS.md` |
+| `PLAN.md` | plan-driven branch | `DECISIONS.md`, and `TASKS.md` (via `/next`) or `IMPLEMENTATION.md` (via `/implement-plan`) |
 | `BUG.md` | bug branch | `TASKS.md` when the fix was planned out |
 | neither | no plan | (treat as no directory found) |
 
@@ -58,6 +59,7 @@ the richer artifact.
   "no plan directory". Several step-3 matches → lists them all in the summary rather than
   reading one.
 - **`next`**: asks the user (step 4 as written).
+- **`implement-plan`**: asks the user (step 4 as written).
 - **`commit`**: no directory found → nothing to keep in step; commit the code only.
 - **`review-branch`**: still spawns the finders; none of them requires `PLAN.md`. It reads
   whichever of `PLAN.md` / `BUG.md` it found for context. It reports in chat on every branch

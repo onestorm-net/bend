@@ -17,10 +17,11 @@ Translate an approved PLAN.md into a TDD task breakdown (`TASKS.md`) that
 interrogation, no design), but it owns the per-task contract that `/next`
 reads.
 
-**Every planned issue gets a TASKS.md, even a small one.** `/next` is the only
-execution path for planned work in Bend, and it needs a task list to execute.
-A small plan just produces a short TASKS.md (often a single implementation task
-plus the final verification task); see
+**A small plan may skip this skill.** When the Approach has about 5 or fewer
+steps inside one module, `/implement-plan` works straight from PLAN.md and
+TASKS.md would only restate it. Everything bigger gets a TASKS.md for `/next`
+to execute, and a borderline plan just produces a short one (often a single
+implementation task plus the final verification task); see
 [`references/task-sizing.md`](/.claude/skills/task-writer/references/task-sizing.md).
 
 ## Core philosophy
