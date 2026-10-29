@@ -52,7 +52,8 @@ public interface EndpointCodec<T> {
      * the codec must not change it or its contents. Return a new buffer for each message rather
      * than reusing one.
      *
-     * <p>If this method throws or returns {@code null}, the send fails and nothing is written.
+     * <p>If this method throws or returns {@code null}, the future returned by
+     * {@link OutgoingEndpoint#send(Object)} fails and nothing is written.
      *
      * @param message the message to encode
      * @return the payload to send, never {@code null}

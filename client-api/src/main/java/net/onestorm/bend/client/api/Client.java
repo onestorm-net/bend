@@ -19,6 +19,7 @@ package net.onestorm.bend.client.api;
  * static final NamespacedId CHAT = NamespacedId.of("bend:chat");
  *
  * OutgoingEndpoint<ChatMessage> chat = client.registerOutgoing(CHAT, chatCodec);
+ * chat.send(new ChatMessage("hello"));
  * }</pre>
  */
 public interface Client {

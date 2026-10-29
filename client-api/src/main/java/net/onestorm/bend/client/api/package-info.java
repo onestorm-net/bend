@@ -11,5 +11,8 @@
  * {@link net.onestorm.bend.client.api.IncomingEndpoint} or
  * {@link net.onestorm.bend.client.api.OutgoingEndpoint}; both are an
  * {@link net.onestorm.bend.client.api.EndpointHandle} that can unregister the endpoint again.
+ * Messages are sent with {@link net.onestorm.bend.client.api.OutgoingEndpoint#send(Object)}, which
+ * reports failures through its future, with an
+ * {@link net.onestorm.bend.client.api.EndpointUnavailableException} when the endpoint can't be used.
  */
 package net.onestorm.bend.client.api;
