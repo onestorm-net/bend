@@ -18,6 +18,10 @@ exception instance, which forces a fixed message.
 - Caller misuse at protocol-definition time stays `IllegalArgumentException`
   (`AbstractProtocol.getPacketId` for an unregistered class, `registerPacket` with an
   out-of-range id).
+- In the API modules, a call that the object's current state forbids raises
+  `IllegalStateException`, while a bad argument stays `IllegalArgumentException`. The first case
+  is registering an endpoint id already registered in that direction
+  (BD-0003 [DECISIONS.md](/docs/issues/BD-0003-endpoint-registration-typed-handles/DECISIONS.md) D6).
 - `ProtocolException` skips the stack trace by passing `writableStackTrace = false` (and
   `enableSuppression = false`) to the JDK's 4-argument `RuntimeException` constructor, so every
   throw keeps its own specific message.
@@ -38,3 +42,6 @@ exception instance, which forces a fixed message.
 - A system property for the debug toggle: would give `protocol` a configuration-loading story
   it doesn't otherwise need.
 - A category hierarchy now: nothing catches by kind yet.
+- `IllegalArgumentException` for every kind of caller misuse (the rule before BD-0003): for a
+  duplicate registration it blames an argument that is valid on another client, or after
+  `unregister()`; the conflict is with the object's state.

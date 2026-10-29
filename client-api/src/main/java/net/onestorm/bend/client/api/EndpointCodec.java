@@ -7,7 +7,9 @@ import java.nio.ByteBuffer;
  *
  * <p>Each message on an endpoint is sent as a payload of bytes whose format belongs to the
  * endpoint's codec; Bend itself never reads it. A codec decodes the payloads that arrive on an
- * incoming endpoint and encodes the messages sent on an outgoing endpoint.
+ * incoming endpoint and encodes the messages sent on an outgoing endpoint. A codec is given to
+ * {@link Client#registerIncoming(NamespacedId, EndpointCodec, EndpointHandler)} or
+ * {@link Client#registerOutgoing(NamespacedId, EndpointCodec)}.
  *
  * <p>Both directions avoid copying: {@link #decode(ByteBuffer)} reads the received bytes in place,
  * and the buffer {@link #encode(Object)} returns is sent as it is. A codec that keeps or changes a
