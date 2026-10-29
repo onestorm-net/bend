@@ -19,9 +19,10 @@ public interface EndpointHandle {
     /**
      * Removes this registration from its client.
      *
-     * <p>For an incoming endpoint, its handler receives no further messages. Once the id has no
-     * other registration on the client, the client stops declaring it supported to the server. A
-     * registration of the same id in the other direction is not affected.
+     * <p>For an incoming endpoint, its handler is not given messages that arrive after this call;
+     * a handler call already running may still finish. Once the id has no other registration on
+     * the client, the client stops declaring it supported to the server. A registration of the
+     * same id in the other direction is not affected.
      *
      * <p>Afterwards the same id may be registered again in the same direction, which returns a new
      * handle. Calling this method more than once does nothing after the first call, and never
