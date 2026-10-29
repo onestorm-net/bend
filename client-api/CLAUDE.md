@@ -9,6 +9,9 @@ linked ADR holds the reasoning.
   ([0012](/docs/decisions/0012-no-netty-types-in-api.md))
 - `Client` has no `connect()` and no settings; an implementation's builder creates it.
   ([0018](/docs/decisions/0018-client-built-by-implementation-builder.md))
+- `send` reports endpoint and connection state through its future (`EndpointUnavailableException`)
+  and throws only for caller bugs. (BD-0004 D3, D4,
+  [DECISIONS.md](/docs/issues/BD-0004-send-returns-completable-future/DECISIONS.md))
 - Public types and members get Javadoc. ([0021](/docs/decisions/0021-javadoc-scope.md))
 - No Lombok, not even `compileOnly`: public members are written out so each carries its own
   Javadoc. (BD-0001 D8, [DECISIONS.md](/docs/issues/BD-0001-namespaced-id-value-type/DECISIONS.md))
