@@ -33,3 +33,6 @@ A snapshot is simpler, idempotent, and self-healing after a reconnect.
 ## Rejected
 
 - Deltas: more state to keep consistent, for no measured gain.
+- Counting only ids with a local handler, with two triggers (the first version of this ADR): the
+  server must block messages on an outgoing-only endpoint, and an unregister would never withdraw
+  an id.

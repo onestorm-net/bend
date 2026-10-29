@@ -42,3 +42,6 @@ exception instance, which forces a fixed message.
 - A system property for the debug toggle: would give `protocol` a configuration-loading story
   it doesn't otherwise need.
 - A category hierarchy now: nothing catches by kind yet.
+- `IllegalArgumentException` for every kind of caller misuse (the rule before BD-0003): for a
+  duplicate registration it blames an argument that is valid on another client, or after
+  `unregister()`; the conflict is with the object's state.

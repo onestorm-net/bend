@@ -50,9 +50,9 @@ Each module has its own `CLAUDE.md` with the rules specific to it.
 - No Netty types (`ByteBuf`, `Channel`, `ChannelFuture`, `EventLoop`) in a public API module;
   payloads cross as `java.nio.ByteBuffer`, converted inside the `-netty` modules.
   ([0012](/docs/decisions/0012-no-netty-types-in-api.md))
-- Malformed or oversized wire input raises `ProtocolException`; caller misuse at setup time
-  raises `IllegalArgumentException` for a bad argument and `IllegalStateException` for a call
-  the current state forbids. ([0011](/docs/decisions/0011-protocol-exception.md), BD-0003 D6,
+- Malformed or oversized wire input raises `ProtocolException`; caller misuse raises
+  `IllegalArgumentException` for a bad argument and `IllegalStateException` for a call the
+  current state forbids. ([0011](/docs/decisions/0011-protocol-exception.md), BD-0003 D6,
   [DECISIONS.md](/docs/issues/BD-0003-endpoint-registration-typed-handles/DECISIONS.md))
 - A `Client` comes from its implementation's builder, which returns the `client-api` `Client`
   interface; `client-api` depends on nothing.
