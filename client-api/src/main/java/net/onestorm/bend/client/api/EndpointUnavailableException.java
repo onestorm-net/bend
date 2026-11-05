@@ -1,13 +1,13 @@
 package net.onestorm.bend.client.api;
 
 /**
- * The exception a send's future fails with when the endpoint can't be used for that message.
+ * Thrown by {@link OutgoingEndpoint#send(Object)} when the endpoint can't be used right now.
  *
- * <p>It reports a normal state of the connection, such as an endpoint the server doesn't offer or a
- * client that is disconnected, not a bug in the caller's code. That is why
- * {@link OutgoingEndpoint#send(Object)} never throws it, but fails its future with it instead.
+ * <p>It reports a state of the connection that a client which reconnects passes through, such as
+ * an endpoint the server doesn't offer or a client that is disconnected, not a bug in the caller's
+ * code. A caller may catch it and drop or retry the message.
  */
-public class EndpointUnavailableException extends RuntimeException {
+public class EndpointUnavailableException extends IllegalStateException {
 
     /**
      * Creates the exception.
