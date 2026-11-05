@@ -1,67 +1,44 @@
 # BD-0004-send-returns-completable-future: Decisions
 
-## D1: `send` returns `CompletableFuture<Void>`
+## D1: `send` returns `void` and throws what the client can check
 **Status:** Accepted
 
-**Context:** `send` must serve fire-and-forget callers and callers who handle the outcome, as JDA's `queue()` does with zero or two callbacks.
+**Context:** The protocol has no per-message response, so a returned future could only report "written to the socket", never "the server handled it".
 
-**Decision:** `CompletableFuture<Void> send(T message)`, one method. Ignoring the result is fire-and-forget; `whenComplete` handles success and failure in one callback. Each call returns a new future; completing or cancelling it does not affect the send.
+**Decision:** `void send(T message)`. Every failure the client can check at the call throws from `send` (D2); anything after it returns is not reported per message (D3).
 
 **Rejected:**
-- `CompletionStage<Void>`: guards against the caller completing its own future, but needs `toCompletableFuture()` for `join()`, and the issue names `CompletableFuture`.
-- JDA-style overloads `send(T)` / `send(T, onSuccess, onFailure)`: careful code must rebuild a future by hand for timeouts or `join()`.
-- An own `SendResult` type: a new public type to keep stable, which still needs `toFuture()`.
+- `CompletableFuture<Void>` (the first version of this plan): suggests a delivery result the protocol can't give.
+- An `isAvailable()` query beside `send`: a check-then-send races a disconnect anyway; add one when a caller needs it.
 
-**Consequences:** Revisit once a first working prototype exists; the cleanup pass may change the shape.
-
-## D2: `EndpointUnavailableException` carries only a message
+## D2: Unusable state throws `EndpointUnavailableException`, an `IllegalStateException`
 **Status:** Accepted
 
-**Context:** The exception that fails the future when the endpoint can't be used needs a shape; `client-netty` constructs it, so it needs a public constructor.
+**Context:** `send` now throws for states a reconnecting client passes through, and for the caller's own mistakes.
 
-**Decision:** `public class EndpointUnavailableException extends RuntimeException` with one public constructor `(String message)`; the implementation names the id and the reason in the message. Unchecked, because it only ever arrives through the future, never from a `throws` clause.
+**Decision:** `EndpointUnavailableException extends IllegalStateException` when the server doesn't offer the id, its flags don't allow client to server, the declaring `Supported Endpoints` isn't acknowledged, or the client is disconnected or closed. A send on this handle after its own `unregister()` throws a plain `IllegalStateException`, checked before the other cases; `send(null)` throws `NullPointerException`. Fits ADR 0011 and BD-0003 D6: a call the current state forbids.
 
 **Rejected:**
-- `NamespacedId getId()`: the caller holds the handle and knows the id; `NamespacedId` is not `Serializable`, so the field would be `transient` and `null` after deserialization.
-- A reason enum (not available, disconnected, closed): nothing branches on it yet, and connection state is BD-0005's `isConnected()` and disconnect events.
+- Plain `IllegalStateException` for all: a tolerant caller can't tell "disconnected" from its own unregistered handle.
+- Extending `RuntimeException`: departs from ADR 0011's state rule.
+- A separate `NotConnectedException`: one more public type for a difference the message already names.
 
-## D3: Caller bugs throw, everything else fails the future
+## D3: Nothing after `send` returns is reported per message
 **Status:** Accepted
 
-**Context:** The issue makes send-after-own-`unregister()` throw; it says nothing about `null` or a failing codec. BD-0002 already says "a failed encode fails the send's future".
+**Context:** The connection or the endpoint can change after the check passed but before the write, and a write can fail on the socket.
 
-**Decision:** `send(null)` throws `NullPointerException` and a send after this handle's `unregister()` throws `IllegalStateException`, both at the call (BD-0003 D6). If `EndpointCodec#encode` throws, the future fails with that exception; if it returns `null`, with a `NullPointerException`. `send` never blocks waiting for the write.
+**Decision:** Such a message is dropped silently; a failed write is the connection's problem and surfaces through BD-0005's connection state, not through `send`. The Javadoc says returning means accepted, not written or received.
 
 **Rejected:**
-- Failing the future for `send(null)` too: a caller bug that a fire-and-forget caller would never see.
+- A per-message callback or future for write failures: the D1 objection again.
 
-## D4: "Unusable" is broad, and no send stays pending past the connection
+## D4: When `encode` runs is BD-0006's
 **Status:** Accepted
 
-**Context:** The issue lists not available, disconnected and closed; protocol-v1.md § Endpoint list updates adds an unacknowledged cycle and a removal, and § Endpoint Message the direction flags.
+**Context:** Codec failures and a payload above the frame cap can only throw from `send` if `encode` runs before `send` returns; that is a threading choice.
 
-**Decision:** The future fails with `EndpointUnavailableException` when the id is not in the current `Available Endpoints`, its flags don't permit client to server, its `Supported Endpoints` cycle is not yet acknowledged, the client is disconnected or closed, or this handle is unregistered after the send was accepted. A future completes when the message is written or fails; a write the connection never takes stays pending only until the connection closes, then fails. No write timer is promised: a server that keeps sending `Keep Alive` but stops reading can hold a write open.
-
-**Rejected:**
-- Only the issue's three cases: leaves the others to `client-netty` to decide by accident.
-
-## D5: No test class in `client-api`
-**Status:** Accepted
-
-**Context:** The branch adds one interface method and an exception with a single constructor that only calls `super(message)`.
-
-**Decision:** No test class, for BD-0003 D5's reason: no executable logic of its own, so a test cannot fail for any change to the contract. The behaviour is tested in `client-netty`.
+**Decision:** BD-0004 promises nothing about when `encode` runs. Throwing codec failures from `send`, and an `IllegalArgumentException` for an encoded message above the frame cap (the developer's choice once encoding is synchronous), move to BD-0006.
 
 **Rejected:**
-- `EndpointUnavailableExceptionTest` checking `getMessage()`: tests `RuntimeException`.
-
-## D6: A write failure's cause has no documented type
-**Status:** Accepted
-
-**Context:** A failed write fails the future with its cause, which at runtime can be a Netty subclass of a JDK exception, or `protocol`'s `ProtocolException` for a payload above the frame cap; neither module is visible to `client-api` callers.
-
-**Decision:** The Javadoc says the future fails with the exception that caused the write to fail and promises no type for it; callers treat it as a `Throwable`. Only `EndpointUnavailableException` and the codec's own exception (D3) are named.
-
-**Rejected:**
-- Wrapping every cause in a `client-api` exception: one more type now, before the prototype shows anyone branches on it.
-- Promising JDK types only: `client-netty` would have to translate Netty and `protocol` exceptions it does not control.
+- Deciding here that `encode` runs inside `send`: the developer keeps all thread placement in BD-0006.
