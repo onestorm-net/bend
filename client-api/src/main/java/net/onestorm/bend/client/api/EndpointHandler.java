@@ -7,10 +7,16 @@ package net.onestorm.bend.client.api;
  * gets the decoded message. A handler is given to
  * {@link Client#registerIncoming(NamespacedId, EndpointCodec, EndpointHandler)}.
  *
+ * <p>A handler is also the endpoint's {@link EndpointListener}: it can override
+ * {@link EndpointListener#onAvailable(EndpointHandle)} and
+ * {@link EndpointListener#onUnavailable(EndpointHandle)} to learn when the server offers the
+ * endpoint. Those do nothing by default, so a lambda for {@link #handle(Object)} is enough when only
+ * the messages matter.
+ *
  * @param <T> the type of message this handler receives
  */
 @FunctionalInterface
-public interface EndpointHandler<T> {
+public interface EndpointHandler<T> extends EndpointListener<IncomingEndpoint<T>> {
 
     /**
      * Handles one received message.
