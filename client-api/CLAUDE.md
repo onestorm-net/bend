@@ -9,8 +9,8 @@ linked ADR holds the reasoning.
   ([0012](/docs/decisions/0012-no-netty-types-in-api.md))
 - `Client` has no `connect()` and no settings; an implementation's builder creates it.
   ([0018](/docs/decisions/0018-client-built-by-implementation-builder.md))
-- `send` returns nothing and throws for what the client can check: `EndpointUnavailableException`
-  (an `IllegalStateException`) for an endpoint or connection that can't be used right now.
+- `send` returns nothing and throws a plain `IllegalStateException` for every state the client can
+  check that forbids the send; no exception subtype until a caller needs one.
   (BD-0004 D1, D2, [DECISIONS.md](/docs/issues/BD-0004-send-returns-completable-future/DECISIONS.md))
 - Public types and members get Javadoc. ([0021](/docs/decisions/0021-javadoc-scope.md))
 - No Lombok, not even `compileOnly`: public members are written out so each carries its own
