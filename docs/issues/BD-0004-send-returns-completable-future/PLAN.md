@@ -47,9 +47,9 @@ exception policy (D1), not from splitting `send` per use case, so the verdict st
 All in `client-api/src/main/java/net/onestorm/bend/client/api/`, on top of the branch as it is:
 
 1. `EndpointUnavailableException.java`: extend `IllegalStateException`. Class Javadoc: thrown by
-   `{@link OutgoingEndpoint#send(Object)}` when the endpoint can't be used right now; it reports a
-   state of the connection, which a client that reconnects passes through, so a caller may catch it
-   and drop or retry the message.
+   `{@link OutgoingEndpoint#send(Object)}` when the endpoint can't be used right now; it reports the
+   state of the endpoint or connection (closed included), not a misuse of the handle, and while the
+   client reconnects a caller may catch it and drop or retry the message.
 2. `OutgoingEndpoint.java`: `void send(T message)`; drop the `CompletableFuture` import. Javadoc:
    - Sends one message: the codec encodes it, the payload goes to the server in an
      `Endpoint Message`. Only this endpoint's messages travel this way.

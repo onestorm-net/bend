@@ -3,9 +3,11 @@ package net.onestorm.bend.client.api;
 /**
  * Thrown by {@link OutgoingEndpoint#send(Object)} when the endpoint can't be used right now.
  *
- * <p>It reports a state of the connection that a client which reconnects passes through, such as
- * an endpoint the server doesn't offer or a client that is disconnected, not a bug in the caller's
- * code. A caller may catch it and drop or retry the message.
+ * <p>It reports the state of the endpoint or the connection, such as an endpoint the server doesn't
+ * offer, a client that is disconnected or a client that is closed, not a misuse of the handle: a
+ * send on an unregistered handle throws a plain {@link IllegalStateException} instead. Most of these
+ * states pass while the client reconnects, so a caller may catch this exception and drop or retry
+ * the message; once the client is closed, a retry fails the same way.
  */
 public class EndpointUnavailableException extends IllegalStateException {
 
