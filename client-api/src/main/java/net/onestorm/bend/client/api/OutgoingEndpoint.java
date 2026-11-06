@@ -18,18 +18,17 @@ public interface OutgoingEndpoint<T> extends EndpointHandle {
      * packets never go through this method.
      *
      * <p>Returning means the message was accepted, not that it was written or that the server
-     * received it: the protocol has no acknowledgement for a single message. If the endpoint or the
-     * connection stops being usable before the message is written, or the write fails, the message
-     * is dropped and this method does not report it.
+     * received it: the protocol has no acknowledgement for a single message. An accepted message
+     * may still be dropped, for example when the endpoint or the connection stops being usable
+     * before it is written, or when the write fails; this method does not report it.
      *
      * @param message the message to send
      * @throws NullPointerException if {@code message} is {@code null}
-     * @throws IllegalStateException if this handle has been unregistered; this is checked before
-     *     the cases below
-     * @throws EndpointUnavailableException if the server does not currently offer this endpoint's
-     *     id, the server's flags for it don't allow the client to send on it, the server has not yet
-     *     acknowledged the {@code Supported Endpoints} that declares it, the client is disconnected,
-     *     or the client is closed
+     * @throws IllegalStateException if this handle has been unregistered, the server does not
+     *     currently offer this endpoint's id, the server's flags for it don't allow the client to
+     *     send on it, the server has not yet acknowledged the {@code Supported Endpoints} that
+     *     declares it, the client is disconnected, or the client is closed; the message names the
+     *     reason
      */
     void send(T message);
 }

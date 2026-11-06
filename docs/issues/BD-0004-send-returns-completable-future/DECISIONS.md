@@ -11,24 +11,23 @@
 - `CompletableFuture<Void>` (the first version of this plan): suggests a delivery result the protocol can't give.
 - An `isAvailable()` query beside `send`: a check-then-send races a disconnect anyway; add one when a caller needs it.
 
-## D2: Unusable state throws `EndpointUnavailableException`, an `IllegalStateException`
-**Status:** Accepted
+## D2: Every refused state throws a plain `IllegalStateException`
+**Status:** Accepted (revised at review, 2026-11-06)
 
-**Context:** `send` now throws for states a reconnecting client passes through, and for the caller's own mistakes.
+**Context:** `send` throws for states a reconnecting client passes through and for the caller's own lifecycle calls (unregister, close).
 
-**Decision:** `EndpointUnavailableException extends IllegalStateException` when the server doesn't offer the id, its flags don't allow client to server, the declaring `Supported Endpoints` isn't acknowledged, or the client is disconnected or closed. A send on this handle after its own `unregister()` throws a plain `IllegalStateException`, checked before the other cases; `send(null)` throws `NullPointerException`. Fits ADR 0011 and BD-0003 D6: a call the current state forbids.
+**Decision:** A plain `IllegalStateException`, its message naming the reason, when this handle is unregistered, the server doesn't offer the id, its flags don't allow client to server, the declaring `Supported Endpoints` isn't acknowledged, or the client is disconnected or closed; `send(null)` throws `NullPointerException`. ADR 0011 and BD-0003 D6: a call the current state forbids. ADR 0011 splits exception types only when a caller needs to catch them apart, and nothing catches yet; a subclass can be added later without breaking a caller, removing one can't.
 
 **Rejected:**
-- Plain `IllegalStateException` for all: a tolerant caller can't tell "disconnected" from its own unregistered handle.
+- `EndpointUnavailableException extends IllegalStateException` for the endpoint and connection states (the first version of D2): no caller needs it yet, and "closed" and "unregistered" are both the caller's doing yet threw different types.
 - Extending `RuntimeException`: departs from ADR 0011's state rule.
-- A separate `NotConnectedException`: one more public type for a difference the message already names.
 
 ## D3: Nothing after `send` returns is reported per message
 **Status:** Accepted
 
 **Context:** The connection or the endpoint can change after the check passed but before the write, and a write can fail on the socket.
 
-**Decision:** Such a message is dropped silently; a failed write is the connection's problem and surfaces through BD-0005's connection state, not through `send`. The Javadoc says returning means accepted, not written or received.
+**Decision:** An accepted message may still be dropped, without a report; the Javadoc gives a state change before the write and a failed write as examples, not a closed list, so client-netty may also drop at its bound on pending writes. A failed write is the connection's problem and surfaces through BD-0005's connection state, not through `send`.
 
 **Rejected:**
 - A per-message callback or future for write failures: the D1 objection again.

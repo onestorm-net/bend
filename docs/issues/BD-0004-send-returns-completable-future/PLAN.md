@@ -16,12 +16,11 @@ clear exception, for anything the client itself can tell is wrong.
 | Decision | Choice | Convention Reference |
 |----------|--------|---------------------|
 | Method | `void send(T message)` on `OutgoingEndpoint<T>` (D1) | BD-0003 PLAN: `OutgoingEndpoint` exists to carry `send` |
-| Unusable endpoint or connection | Throws `EndpointUnavailableException extends IllegalStateException`; the five cases (not offered, flags, not acknowledged, disconnected, closed) are listed in the Javadoc (D2) | ADR 0011 Decision (state-forbidden call), BD-0003 D6; protocol-v1.md § Flow, § Endpoint list updates, § Endpoint Message |
-| Caller bugs | `send(null)` throws `NullPointerException`; send after own `unregister()` throws plain `IllegalStateException` (D2) | `Client#registerOutgoing` `@throws` wording; BD-0003 D6 |
-| After `send` returns | Not reported: a state change before the write drops the message, a failed write is the connection's (D3) | Issue scope: lifecycle is BD-0005 |
+| Refused states | Plain `IllegalStateException`, message naming the reason, for unregistered, not offered, flags, not acknowledged, disconnected, closed; all listed in the Javadoc (D2) | ADR 0011 Decision (state-forbidden call), BD-0003 D6; protocol-v1.md § Flow, § Endpoint list updates, § Endpoint Message |
+| Null message | `send(null)` throws `NullPointerException` (D2) | `Client#registerOutgoing` `@throws` wording; BD-0003 D6 |
+| After `send` returns | An accepted message may still be dropped, without a report; the Javadoc's reasons are examples, not a closed list (D3) | Issue scope: lifecycle is BD-0005 |
 | Codec and frame-cap failures | Not in this contract; BD-0006 decides when `encode` runs (D4) | BD-0006 owns threads |
 | Built-in packets | Javadoc: `send` carries only this endpoint's messages | ADR 0008 Decision |
-| Exception shape | One public `(String message)` constructor, unchecked, stack trace kept (it is not wire input, ADR 0011's no-stack-trace rule is `ProtocolException`'s) | Branch's existing `EndpointUnavailableException` |
 
 **Layer compliance:** all changes are in `client-api`, using only `java.lang` and
 `net.onestorm.bend.client.api` types; `client-api/build.gradle.kts` declares only
@@ -30,41 +29,37 @@ clear exception, for anything the client itself can tell is wrong.
 **Module shape:** `OutgoingEndpoint` is deep: one call hides encoding, the state checks, the
 `Endpoint Message` wrapping and the write. The second use case Risks names (a
 non-throwing variant, or an `isAvailable()` query) would be a method, but it comes from the
-exception policy (D1), not from splitting `send` per use case, so the verdict stands. `EndpointUnavailableException` is exempt (exception class).
+exception policy (D1), not from splitting `send` per use case, so the verdict stands.
 
 ## Scope
-- **In scope:** `OutgoingEndpoint.java` (`send` signature and Javadoc),
-  `EndpointUnavailableException.java` (superclass and Javadoc), `package-info.java`,
+- **In scope:** `OutgoingEndpoint.java` (`send` signature and Javadoc), removing the branch's
+  `EndpointUnavailableException.java` (D2), `package-info.java`,
   `EndpointCodec.java` (`encode` failure sentence), `client-api/CLAUDE.md` (rule line),
   Kendo BD-0004 title and acceptance criteria.
 - **Out of scope:** when and on which thread `encode` runs, codec failures and the frame-cap check
   (BD-0006, D4); `close()`, connection state and its events (BD-0005); an `isAvailable()` query
-  (D1); queueing while disconnected; the `client-netty` implementation and its tests; any change to
+  (D1); an exception subtype for refused states (D2); queueing while disconnected; the `client-netty` implementation and its tests; any change to
   `protocol` or `protocol-v1.md`.
 
 ## Approach
 
 All in `client-api/src/main/java/net/onestorm/bend/client/api/`, on top of the branch as it is:
 
-1. `EndpointUnavailableException.java`: extend `IllegalStateException`. Class Javadoc: thrown by
-   `{@link OutgoingEndpoint#send(Object)}` when the endpoint can't be used right now; it reports the
-   state of the endpoint or connection (closed included), not a misuse of the handle, and while the
-   client reconnects a caller may catch it and drop or retry the message.
+1. `EndpointUnavailableException.java`: delete (D2).
 2. `OutgoingEndpoint.java`: `void send(T message)`; drop the `CompletableFuture` import. Javadoc:
    - Sends one message: the codec encodes it, the payload goes to the server in an
      `Endpoint Message`. Only this endpoint's messages travel this way.
    - Returning means the message was accepted, not that it was written or that the server received
-     it; the protocol has no per-message acknowledgement. If the endpoint or the connection stops
-     being usable before the message is written, or the write fails, the message is dropped and
-     `send` does not report it.
+     it; the protocol has no per-message acknowledgement. An accepted message may still be dropped,
+     for example when the endpoint or the connection stops being usable before it is written, or
+     when the write fails; `send` does not report it (D3).
    - `@throws NullPointerException` if `message` is `null`.
-   - `@throws IllegalStateException` if this handle has been unregistered; this is checked first,
-     so it wins over every `EndpointUnavailableException` case.
-   - `@throws EndpointUnavailableException` if the server does not currently offer this id, the
-     server's flags for it don't allow the client to send on it, the server has not yet acknowledged
-     the `Supported Endpoints` that declares it, the client is disconnected, or the client is closed.
-3. `package-info.java`: messages are sent with `send`, which throws an
-   `EndpointUnavailableException` when the endpoint can't be used right now.
+   - `@throws IllegalStateException` if this handle has been unregistered, the server does not
+     currently offer this id, the server's flags for it don't allow the client to send on it, the
+     server has not yet acknowledged the `Supported Endpoints` that declares it, the client is
+     disconnected, or the client is closed; the message names the reason.
+3. `package-info.java`: messages are sent with `send`, which throws an `IllegalStateException`
+   when the endpoint can't be used right now.
 4. `EndpointCodec.java`: the `encode` sentence becomes "If this method throws or returns
    `{@code null}`, the message passed to `{@link OutgoingEndpoint#send(Object)}` is not sent." It
    links `send` as BD-0003's plan expected, and says nothing about how that is reported (D4).
@@ -80,7 +75,7 @@ N/A: the branch reads nothing off the wire; it changes a signature and Javadoc i
 
 ### Connection lifecycle, timeouts and silent peers
 `send` waits for nothing, so it adds no wait to bound. Disconnected and closed throw
-`EndpointUnavailableException` at the call (D2); a disconnect after the check drops the message
+`IllegalStateException` at the call (D2); a disconnect after the check drops the message
 without a report (D3), and the caller learns of the connection through BD-0005. No `Disconnect` is
 sent by `send`. Proof: the `@throws` and drop sentences in `OutgoingEndpoint#send` Javadoc.
 
@@ -96,7 +91,7 @@ No buffer, future or channel crosses the API; the payload's `ByteBuffer` ownersh
 on `EndpointCodec#encode` and is unchanged. Two things the plan leaves open on purpose: whether the
 caller may modify the message after `send` returns depends on when `encode` runs, so BD-0006 decides
 it; and accepted-but-unwritten messages need a bound per connection (Netty's write-buffer water
-marks, verify at implementation) and a write listener that feeds a failed write into BD-0005's
+marks, verify at implementation; D3 lets `send` drop at that bound) and a write listener that feeds a failed write into BD-0005's
 connection state, both client-netty's. Proof: both listed under Risks.
 
 ### Spec conformance
@@ -104,16 +99,16 @@ connection state, both client-netty's. Proof: both listed under Risks.
 server has the endpoint available and the client has declared it supported. The endpoint's flags
 determine the valid direction") and § Endpoint list updates ("New endpoints ... MUST NOT be used
 until the full acknowledge cycle for that list is complete"). No spec change. Proof: the
-`EndpointUnavailableException` cases in the Javadoc map one to one onto those rules.
+`IllegalStateException` cases in the Javadoc map one to one onto those rules.
 
 ### Public API surface, module boundaries and enforcement
-One changed method (`send` now returns `void`) and one changed superclass; no Netty or
+One new method (`send`, returning `void`) and no new type; no Netty or
 `java.util.concurrent` type in a signature, no new dependency. `send` stays the endpoint-message
 path only (ADR 0008), enforced L1: the signature takes a `T` for this endpoint's codec, not a
 packet. Caller misuse throws per D2. The new `client-api/CLAUDE.md` rule (which states throw) is
 L4 here, Javadoc and review only, and becomes L2 with the client-netty epic's contract tests. A
 caller catching `IllegalStateException` around `send` also catches its own unregistered-handle bug;
-catching `EndpointUnavailableException` does not (D2). Both public types carry Javadoc (ADR 0021).
+D2 accepts that until a caller needs a subtype. `send` carries Javadoc (ADR 0021).
 Proof: `./gradlew :bend-client-api:javadoc --rerun` without warnings checks the links only; the rule
 itself is checked by reading the Javadoc against D2.
 
@@ -132,11 +127,11 @@ any removed endpoints"), so client-netty stops writing on that id before it rese
 | # | Criterion | Verification |
 |---|-----------|-------------|
 | 1 | `OutgoingEndpoint#send` is `void send(T message)` and `client-api` has no `CompletableFuture` | `grep -rn CompletableFuture client-api/src` finds nothing; `./gradlew :bend-client-api:build` passes |
-| 2 | `EndpointUnavailableException` extends `IllegalStateException` | read the class declaration |
-| 3 | The `send` Javadoc has `@throws` for `null`, own `unregister()`, and the five unusable cases of D2, says returning is not delivery, says later failures are dropped, and says nothing about threads, codec failures or the frame cap | read the Javadoc against D2 to D4 |
+| 2 | `client-api` has no `EndpointUnavailableException` | `grep -rn EndpointUnavailable client-api/src client-api/CLAUDE.md` finds nothing |
+| 3 | The `send` Javadoc has `@throws NullPointerException` for `null` and `@throws IllegalStateException` for the six cases of D2, says returning is not delivery, says an accepted message may still be dropped (examples, not a closed list), and says nothing about threads, codec failures or the frame cap | read the Javadoc against D2 to D4 |
 | 4 | `client-api/CLAUDE.md`'s `send` line matches D1 and D2 and links this DECISIONS.md | read the line |
 | 5 | Javadoc builds cleanly | `./gradlew :bend-client-api:javadoc --rerun` shows no javadoc warning |
-| 6 | No future wording is left in `client-api` (`EndpointUnavailableException`, `package-info`, `EndpointCodec#encode` included) | `grep -rni future client-api/src` finds nothing |
+| 6 | No future wording is left in `client-api` (`package-info` and `EndpointCodec#encode` included) | `grep -rni future client-api/src` finds nothing |
 | 7 | `IMPLEMENTATION.md` from the future-based version is gone | `ls docs/issues/BD-0004-send-returns-completable-future/` lists only `PLAN.md` and `DECISIONS.md` until `/implement-plan` writes a new log |
 | 8 | Kendo BD-0004's title and acceptance criteria describe `void send` and D2 to D4 | read the issue with `prepare-issue-context-tool` |
 
@@ -149,9 +144,9 @@ any removed endpoints"), so client-netty stops writing on that id before it rese
 
 ## Testing Strategy
 
-No test class in `client-api`: the branch adds no executable logic, only a signature, Javadoc and a
-superclass, so no test could fail for a change to the contract (BD-0003 D5). The behaviour,
-including each `EndpointUnavailableException` case and the drop after `send` returns, is tested in
+No test class in `client-api`: the branch adds no executable logic, only a signature, Javadoc and the
+removal of an exception class, so no test could fail for a change to the contract (BD-0003 D5). The behaviour,
+including each `IllegalStateException` case and the drop after `send` returns, is tested in
 the `client-netty` epic. Checks here: `./gradlew :bend-client-api:build` and
 `./gradlew :bend-client-api:javadoc --rerun`.
 
@@ -160,26 +155,29 @@ the `client-netty` epic. Checks here: `./gradlew :bend-client-api:build` and
 | Source change | Document | Update / N/A |
 |---|---|---|
 | Wire format, packet fields, limits, MUST/disconnect rules, flow | `protocol/protocol-v1.md` | N/A: no wire change |
-| New or changed public type or method in `client-api` | Javadoc on that type | Update: `OutgoingEndpoint#send`, `EndpointUnavailableException`, `package-info`, `EndpointCodec#encode` |
-| A design decision, layer rule, convention or module plan | `CLAUDE.md` | Update: `client-api/CLAUDE.md` line becomes "`send` returns nothing and throws for what the client can check: `EndpointUnavailableException` (an `IllegalStateException`) for an endpoint or connection that can't be used right now. (BD-0004 D1, D2, DECISIONS.md link)". ADR 0011: N/A, its state rule already covers a subclass |
+| New or changed public type or method in `client-api` | Javadoc on that type | Update: `OutgoingEndpoint#send`, `package-info`, `EndpointCodec#encode` |
+| A design decision, layer rule, convention or module plan | `CLAUDE.md` | Update: `client-api/CLAUDE.md` line becomes "`send` returns nothing and throws a plain `IllegalStateException` for every state the client can check that forbids the send; no exception subtype until a caller needs one. (BD-0004 D1, D2, DECISIONS.md link)". Root `CLAUDE.md` and ADR 0011: N/A, a plain `IllegalStateException` for a call the current state forbids is already their rule |
 
 ## Edge Cases
 
-- Send while disconnected and reconnecting: `EndpointUnavailableException`; the caller decides to
-  drop or retry (D2).
+- Send while disconnected and reconnecting: `IllegalStateException`; the caller decides to drop
+  or retry (D2).
 - Send on an outgoing registration whose id the server flags clientbound only: BD-0003 allows the
-  registration, `send` throws `EndpointUnavailableException` (D2).
+  registration, `send` throws `IllegalStateException` (D2).
 - Send right after registering, before the server acknowledged the new `Supported Endpoints`:
-  `EndpointUnavailableException` (D2, spec § Endpoint list updates).
-- Disconnect between the check and the write: message dropped, no report (D3).
-- Send on this handle after its `unregister()`, even if the id was registered again or the client
-  is also disconnected or closed: plain `IllegalStateException`, checked first; the new handle is
-  unaffected (D2, `EndpointHandle#unregister`).
+  `IllegalStateException` (D2, spec § Endpoint list updates).
+- Disconnect between the check and the write: the message may be dropped, no report (D3).
+- Server removes the endpoint after `send` accepted a message: client-netty may write it before
+  acknowledging the removal, or drop it; the contract allows both (D3).
+- Send on this handle after its `unregister()`, even if the id was registered again:
+  `IllegalStateException`; the new handle is unaffected (D2, `EndpointHandle#unregister`).
 
 ## Risks
 
 - Fire-and-forget callers now need a `try`/`catch` around every `send` while the client reconnects;
   if that proves noisy, an `isAvailable()` query or a non-throwing variant is the follow-up (D1).
+  A caller that must tell its own lifecycle bugs from connection states needs a subtype, which can
+  be added later without breaking callers (D2).
 - BD-0006's description still says "future callbacks run on the I/O thread" and doesn't yet carry
   D4's codec and frame-cap items; it needs updating before it is planned. It must also decide
   whether the caller may modify a message after `send` returns, keep `send` non-blocking, and make
