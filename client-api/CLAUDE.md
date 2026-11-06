@@ -15,9 +15,13 @@ linked ADR holds the reasoning.
 - `close()` is final and does not wait for I/O; afterwards registering and adding a listener throw
   `IllegalStateException`. An implementation that stops reconnecting closes the client.
   (BD-0005 D1, D2, [DECISIONS.md](/docs/issues/BD-0005-client-lifecycle/DECISIONS.md))
-- Connection events go to a `ConnectionListener` on the `Client`; every connection attempt ends
-  with one `onDisconnect` carrying a `DisconnectInfo`.
+- Client-wide events (connect, disconnect) go to a `ClientListener` added on the `Client`; every
+  connection attempt ends with one `onDisconnect` carrying a `DisconnectInfo`.
   (BD-0005 D5, D6, [DECISIONS.md](/docs/issues/BD-0005-client-lifecycle/DECISIONS.md))
+- An endpoint's availability goes to the `EndpointListener` given with its registration (the
+  `EndpointHandler` for incoming), never to a listener added later; `isAvailable()` is false
+  exactly when `send` would refuse for a state reason.
+  (BD-0005 D8, [DECISIONS.md](/docs/issues/BD-0005-client-lifecycle/DECISIONS.md))
 - Public types and members get Javadoc. ([0021](/docs/decisions/0021-javadoc-scope.md))
 - No Lombok, not even `compileOnly`: public members are written out so each carries its own
   Javadoc. (BD-0001 D8, [DECISIONS.md](/docs/issues/BD-0001-namespaced-id-value-type/DECISIONS.md))
