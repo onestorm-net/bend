@@ -18,3 +18,20 @@
 **Follow-ups noted but not done:**
 - BD-0006's description needs the D4 items before it is planned (PLAN.md Risks).
 - client-netty epic: a write listener feeding BD-0005's connection state, and a bound on pending writes (PLAN.md Risks).
+
+## 2026-11-06: review pass; plain `IllegalStateException`, open-ended drop wording
+
+**Key Changes:**
+- Deleted `client-api/src/main/java/net/onestorm/bend/client/api/EndpointUnavailableException.java` (D2 revised: no subtype until a caller needs one)
+- Modified `OutgoingEndpoint.java`: one `@throws IllegalStateException` for all six refused states; the drop sentence gives examples, not a closed list (D3 revised)
+- Modified `package-info.java`, `client-api/CLAUDE.md`, PLAN.md and DECISIONS.md to match
+
+**Learnings:**
+- The earlier entry's JaCoCo note no longer applies: `client-api` has no untested executable line left.
+- ADR 0011 allows splitting exception types only when a caller must catch them apart; adding an `IllegalStateException` subclass later is compatible, removing one is not, which carried the revision.
+
+**Deviations from plan:**
+- None; the plan was revised with the developer before the change.
+
+**Follow-ups noted but not done:**
+- `.claude/agents/runtime-integrity-reviewer.md` and `precedent-reviewer.md` don't load as agent types (filed as a hive finding).
