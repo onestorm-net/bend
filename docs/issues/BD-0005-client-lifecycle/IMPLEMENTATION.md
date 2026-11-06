@@ -36,3 +36,38 @@
   doesn't complete it for others (D4).
 - Plus what the plan already assigns to BD-0006 (listener thread and ordering) and the client-netty
   epic (behaviour tests, closing on give-up).
+
+## 2026-11-06: PR #9 review, endpoint availability and listener naming
+
+**Key Changes:**
+- Created `EndpointListener.java` (D8) and `EndpointListenerTest.java`.
+- `EndpointHandler` extends `EndpointListener<IncomingEndpoint<T>>`; `EndpointHandle#isAvailable()`;
+  `Client#registerOutgoing(id, codec, listener)` overload; one sentence in `OutgoingEndpoint#send`
+  tying its state refusals to `isAvailable()`.
+- `firstConnection()` renamed `whenReady()` (D9); `ConnectionListener` renamed `ClientListener`,
+  `add/removeConnectionListener` renamed `addListener`/`removeListener` (D5 revised); test renamed
+  `ClientListenerTest`.
+- `client-api/CLAUDE.md`: endpoint listener rule line; client listener line reworded.
+
+**Learnings:**
+- `EndpointListener` is generic over the handle (`H extends EndpointHandle`) so one interface serves
+  both directions and each callback can use its own endpoint while the registration is still
+  being created (the caller's variable isn't assigned yet inside the listener).
+- `EndpointHandler` keeps a single abstract method, so existing lambdas and method references
+  still compile; `EndpointListenerTest` pins that.
+
+**Deviations from plan:**
+- None beyond the review decisions, which PLAN.md and DECISIONS.md now carry.
+
+**Follow-ups noted but not done (client-netty epic):**
+- #4 (track the acknowledged set) fires `onAvailable`/`onUnavailable` and backs `isAvailable()`;
+  #6 (send) must refuse from the same state so the two never disagree.
+
+**Branch review fixes (round 2):**
+- `EndpointHandle#isAvailable` and `EndpointListener`: a server-removed incoming endpoint becomes
+  unavailable only after the client acknowledges the list; in-flight messages still reach the
+  handler (§ Endpoint list updates). Outgoing becomes unavailable when the list arrives.
+- `DisconnectOrigin.CLOSED`: only for an attempt that `close()` ended; giving up on its own emits no
+  `CLOSED` disconnect.
+- BD-0004 D1: pointer that its `isAvailable()` rejection is superseded in part by BD-0005 D8.
+- Repeated client-netty obligations (unknown-type catch, minimal stage) stay as logged above.
