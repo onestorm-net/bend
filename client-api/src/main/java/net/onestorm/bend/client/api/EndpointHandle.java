@@ -26,7 +26,8 @@ public interface EndpointHandle {
      *
      * <p>Afterwards the same id may be registered again in the same direction, which returns a new
      * handle. Calling this method more than once does nothing after the first call, and never
-     * affects a newer registration of the same id.
+     * affects a newer registration of the same id. After the client is closed, this method does
+     * nothing.
      */
     void unregister();
 }

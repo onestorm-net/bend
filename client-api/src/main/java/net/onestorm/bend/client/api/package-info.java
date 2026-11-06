@@ -13,5 +13,12 @@
  * {@link net.onestorm.bend.client.api.EndpointHandle} that can unregister the endpoint again.
  * Messages are sent with {@link net.onestorm.bend.client.api.OutgoingEndpoint#send(Object)}, which
  * throws an {@link IllegalStateException} when the endpoint can't be used right now.
+ *
+ * <p>A {@link net.onestorm.bend.client.api.Client} reports whether it is connected, tells a
+ * {@link net.onestorm.bend.client.api.ConnectionListener} when it connects and disconnects, with a
+ * {@link net.onestorm.bend.client.api.DisconnectInfo} (its
+ * {@link net.onestorm.bend.client.api.DisconnectOrigin} and
+ * {@link net.onestorm.bend.client.api.DisconnectType}) saying why, and is shut down for good with
+ * {@link net.onestorm.bend.client.api.Client#close()}.
  */
 package net.onestorm.bend.client.api;
