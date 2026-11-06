@@ -1,6 +1,6 @@
 ---
 name: precedent-reviewer
-description: Review a branch against what is already written down: Bend's standing rulings in CLAUDE.md and its ADRs (docs/decisions/), the wire spec in protocol/protocol-v1.md, the sibling implementation that already solves this shape, and the branch's own plan prose. Carries the Recorded rulings and Sibling precedent corpus sections. Spawned always by `/review-branch` in parallel with `runtime-integrity-reviewer` and `correctness-reviewer`.
+description: "Review a branch against what is already written down: Bend's standing rulings in CLAUDE.md and its ADRs (docs/decisions/), the wire spec in protocol/protocol-v1.md, the sibling implementation that already solves this shape, and the branch's own plan prose. Carries the Recorded rulings and Sibling precedent corpus sections. Spawned always by `/review-branch` in parallel with `runtime-integrity-reviewer` and `correctness-reviewer`."
 tools: Read, Glob, Grep, Bash
 model: sonnet
 ---
