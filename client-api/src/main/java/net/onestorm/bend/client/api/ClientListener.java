@@ -1,10 +1,12 @@
 package net.onestorm.bend.client.api;
 
 /**
- * Is told when a {@link Client} connects and disconnects.
+ * Is told about events of a whole {@link Client}: for now, when it connects and disconnects.
  *
- * <p>A listener is added with {@link Client#addConnectionListener(ConnectionListener)}. Both
- * methods do nothing by default, so a listener overrides only the one it needs.
+ * <p>A listener is added with {@link Client#addListener(ClientListener)}. Every method does nothing
+ * by default, so a listener overrides only the ones it needs, and a later event of the client is a
+ * new method here that existing listeners can ignore. Events of one endpoint go to that endpoint's
+ * {@link EndpointListener} instead.
  *
  * <p>The client may connect several times, for example after reconnects. Every connection attempt
  * ends with exactly one {@link #onDisconnect(DisconnectInfo)}, also an attempt that never
@@ -19,12 +21,13 @@ package net.onestorm.bend.client.api;
  * <p>If a method throws, the implementation reports the failure; the other listeners still get the
  * event, and the connection is not affected.
  */
-public interface ConnectionListener {
+public interface ClientListener {
 
     /**
      * Called when the client has connected: it acknowledged the server's first
-     * {@code Available Endpoints} on this connection, so endpoints can be used once the server offers
-     * them.
+     * {@code Available Endpoints} on this connection. Endpoints are not usable yet at this point:
+     * the client's own {@code Supported Endpoints} still has to be acknowledged. To act when an
+     * endpoint can be used, give its registration an {@link EndpointListener}.
      */
     default void onConnect() {
     }

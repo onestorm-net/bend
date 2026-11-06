@@ -32,8 +32,9 @@ public enum DisconnectOrigin {
     CONNECTION,
 
     /**
-     * The client was closed, by {@link Client#close()} or because it will not connect again. The
-     * type is {@link DisconnectType#GENERIC}.
+     * {@link Client#close()} ended a connection attempt that was in progress or connected. The type
+     * is {@link DisconnectType#GENERIC}. When the implementation stops trying on its own, the last
+     * attempt has already ended with its own origin, so there is no {@code CLOSED} disconnect.
      */
     CLOSED
 }

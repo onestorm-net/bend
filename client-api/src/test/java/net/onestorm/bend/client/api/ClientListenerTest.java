@@ -4,10 +4,10 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 
 import org.junit.jupiter.api.Test;
 
-class ConnectionListenerTest {
+class ClientListenerTest {
 
     // A listener overrides only the method it needs; the other one must do nothing.
-    private final ConnectionListener listener = new ConnectionListener() {
+    private final ClientListener listener = new ClientListener() {
     };
 
     @Test

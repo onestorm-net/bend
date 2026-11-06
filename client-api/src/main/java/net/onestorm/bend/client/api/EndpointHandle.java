@@ -17,6 +17,32 @@ public interface EndpointHandle {
     NamespacedId getId();
 
     /**
+     * Returns whether this endpoint can be used right now.
+     *
+     * <p>An outgoing endpoint is available when the client is connected, the server offers its id
+     * with flags that let the client send on it, and the server has acknowledged the
+     * {@code Supported Endpoints} that declares it: exactly when
+     * {@link OutgoingEndpoint#send(Object)} does not refuse a message because of the endpoint's or
+     * the connection's state. An incoming endpoint is available when the client is connected, the
+     * server offers its id with flags that let the server send on it, and the server has
+     * acknowledged the {@code Supported Endpoints} that declares it (protocol-v1, "Endpoint list
+     * updates"). An unregistered endpoint, and every endpoint of a closed client, is not available.
+     *
+     * <p>When the server stops offering an id, an outgoing endpoint becomes unavailable as soon as
+     * the client receives the server's new list, because the client must stop sending on it before
+     * acknowledging that list. An incoming endpoint becomes unavailable only once the client has
+     * acknowledged that list: messages the server sent before the acknowledgement are still valid
+     * and are still given to the handler (protocol-v1, "Endpoint list updates").
+     *
+     * <p>The result is the latest state, from whichever thread calls this method, but it may change
+     * right after this method returns. To act on changes, give the registration an
+     * {@link EndpointListener}.
+     *
+     * @return {@code true} if this endpoint is available
+     */
+    boolean isAvailable();
+
+    /**
      * Removes this registration from its client.
      *
      * <p>For an incoming endpoint, its handler is not given messages that arrive after this call;

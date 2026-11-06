@@ -5,7 +5,7 @@ import java.util.Objects;
 /**
  * Why a connection ended: its {@link DisconnectOrigin}, its {@link DisconnectType} and a reason.
  *
- * <p>Given to {@link ConnectionListener#onDisconnect(DisconnectInfo)}. Branch on the origin and
+ * <p>Given to {@link ClientListener#onDisconnect(DisconnectInfo)}. Branch on the origin and
  * the type; the reason is free text for logging and is not safe to match on.
  *
  * <p>Instances are immutable and safe to share between threads. Two infos are equal when their

@@ -12,7 +12,9 @@ import java.util.concurrent.CompletionStage;
  * <p>Endpoints are registered here. A registration belongs to the client, not to one connection,
  * and survives reconnects: after a reconnect the client declares the same endpoints again.
  * Registering an id once as incoming and once as outgoing makes a bidirectional endpoint.
- * Registering does not wait for the server: an endpoint can be used once the server offers its id.
+ * Registering does not wait for the server: an endpoint can be used once it is available, see
+ * {@link EndpointHandle#isAvailable()}. To act when that happens, give the registration an
+ * {@link EndpointListener}; for an incoming endpoint its {@link EndpointHandler} is one.
  *
  * <p>Endpoint ids are usually declared once, as constants, so an invalid id fails where it is
  * defined:
@@ -26,25 +28,28 @@ import java.util.concurrent.CompletionStage;
  *
  * <p>The client is connected once it has acknowledged the server's first
  * {@code Available Endpoints} on the current connection; {@link #isConnected()} reports this, and
- * a {@link ConnectionListener} is told each time it connects and disconnects, including after
+ * a {@link ClientListener} is told each time it connects and disconnects, including after
  * reconnects. Between connections the client is not connected. Once it will not connect again,
  * because {@link #close()} was called or because the implementation stopped trying, the client is
  * closed for good. A client is therefore either still trying to connect or closed.
  *
  * <pre>{@code
- * client.addConnectionListener(new ConnectionListener() {
+ * client.addListener(new ClientListener() {
  *     @Override
  *     public void onDisconnect(DisconnectInfo info) {
  *         log.info("disconnected: " + info);
  *     }
  * });
- * client.firstConnection().toCompletableFuture().get(10, TimeUnit.SECONDS);
+ * client.whenReady().toCompletableFuture().get(10, TimeUnit.SECONDS);
  * }</pre>
  */
 public interface Client extends AutoCloseable {
 
     /**
-     * Registers an endpoint the client sends messages on.
+     * Registers an endpoint the client sends messages on, without a listener.
+     *
+     * <p>The same as {@link #registerOutgoing(NamespacedId, EndpointCodec, EndpointListener)} with a
+     * listener that does nothing.
      *
      * @param <T> the type of message the endpoint sends
      * @param id the endpoint's id
@@ -57,12 +62,33 @@ public interface Client extends AutoCloseable {
     <T> OutgoingEndpoint<T> registerOutgoing(NamespacedId id, EndpointCodec<T> codec);
 
     /**
+     * Registers an endpoint the client sends messages on, with a listener that is told when the
+     * endpoint becomes available and when it stops being available.
+     *
+     * <p>The listener belongs to this registration: it gets every change from the start, and is not
+     * called again after {@link EndpointHandle#unregister()} returns. See {@link EndpointListener}.
+     *
+     * @param <T> the type of message the endpoint sends
+     * @param id the endpoint's id
+     * @param codec the codec that encodes the messages sent on the endpoint
+     * @param listener the listener that is told about the endpoint's availability
+     * @return the handle of the new registration
+     * @throws NullPointerException if {@code id}, {@code codec} or {@code listener} is {@code null}
+     * @throws IllegalStateException if {@code id} is already registered as outgoing on this client,
+     *     or the client is closed
+     */
+    <T> OutgoingEndpoint<T> registerOutgoing(NamespacedId id, EndpointCodec<T> codec,
+            EndpointListener<OutgoingEndpoint<T>> listener);
+
+    /**
      * Registers an endpoint the client receives messages on.
      *
      * @param <T> the type of message the endpoint receives
      * @param id the endpoint's id
      * @param codec the codec that decodes the messages received on the endpoint
-     * @param handler the handler that receives each decoded message
+     * @param handler the handler that receives each decoded message, and, as an
+     *     {@link EndpointListener}, is told when the endpoint becomes available and when it stops
+     *     being available
      * @return the handle of the new registration
      * @throws NullPointerException if {@code id}, {@code codec} or {@code handler} is {@code null}
      * @throws IllegalStateException if {@code id} is already registered as incoming on this client,
@@ -85,44 +111,50 @@ public interface Client extends AutoCloseable {
     boolean isConnected();
 
     /**
-     * Returns a stage that completes when the client connects for the first time.
+     * Returns a stage that completes when the client is ready: connected for the first time.
      *
      * <p>The stage completes normally the first time the client connects and stays completed, also
      * after later disconnects. If the client is closed before it ever connected, the stage
      * completes exceptionally with an {@link IllegalStateException} whose message names the last
-     * disconnect, or says that the client was closed before any connection attempt ended. Since a client either keeps trying or closes, the stage always completes in the
-     * end, though possibly much later; use a timeout when waiting on it. A caller can't complete
-     * the stage for other callers.
+     * disconnect, or says that the client was closed before any connection attempt ended. Since a
+     * client either keeps trying or closes, the stage always completes in the end, though possibly
+     * much later; use a timeout when waiting on it. A caller can't complete the stage for other
+     * callers.
      *
-     * <p>To block until connected, call {@code firstConnection().toCompletableFuture().get(timeout,
-     * unit)} on a thread of your own. Callbacks chained on the stage may run on the
-     * implementation's I/O thread, so they must not block.
+     * <p>Ready means connected, not that a given endpoint can be used: the server may not offer it
+     * yet, and the client's own {@code Supported Endpoints} may not be acknowledged yet. To act when
+     * an endpoint can be used, give its registration an {@link EndpointListener}.
+     *
+     * <p>To block until ready, call {@code whenReady().toCompletableFuture().get(timeout, unit)} on
+     * a thread of your own. Callbacks chained on the stage may run on the implementation's I/O
+     * thread, so they must not block.
      *
      * @return the stage of the first connection
      */
-    CompletionStage<Void> firstConnection();
+    CompletionStage<Void> whenReady();
 
     /**
-     * Adds a listener that is told when the client connects and disconnects.
+     * Adds a listener that is told about events of the whole client, such as connecting and
+     * disconnecting.
      *
      * <p>Adding a listener that is already added does nothing. The listener is not told about a
-     * connection that was already made when it was added; see {@link ConnectionListener}.
+     * connection that was already made when it was added; see {@link ClientListener}.
      *
      * @param listener the listener to add
      * @throws NullPointerException if {@code listener} is {@code null}
      * @throws IllegalStateException if the client is closed
      */
-    void addConnectionListener(ConnectionListener listener);
+    void addListener(ClientListener listener);
 
     /**
-     * Removes a listener added with {@link #addConnectionListener(ConnectionListener)}.
+     * Removes a listener added with {@link #addListener(ClientListener)}.
      *
      * <p>Removing a listener that is not added does nothing, also after the client is closed.
      *
      * @param listener the listener to remove
      * @throws NullPointerException if {@code listener} is {@code null}
      */
-    void removeConnectionListener(ConnectionListener listener);
+    void removeListener(ClientListener listener);
 
     /**
      * Closes the client for good.
@@ -132,7 +164,7 @@ public interface Client extends AutoCloseable {
      * {@link OutgoingEndpoint#send(Object)} throws it too, and {@link EndpointHandle#unregister()}
      * does nothing. A message that arrived but was not yet given to its handler is dropped; a
      * handler call already running may still finish. If a connection attempt was in progress or
-     * connected, listeners get its final {@link ConnectionListener#onDisconnect(DisconnectInfo)},
+     * connected, listeners get its final {@link ClientListener#onDisconnect(DisconnectInfo)},
      * with origin {@link DisconnectOrigin#CLOSED}, possibly after this method returns.
      *
      * <p>This method does not wait for the connection to close, so it can be called from an
