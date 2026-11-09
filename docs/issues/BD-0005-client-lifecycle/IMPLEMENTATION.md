@@ -71,3 +71,36 @@
   `CLOSED` disconnect.
 - BD-0004 D1: pointer that its `isAvailable()` rejection is superseded in part by BD-0005 D8.
 - Repeated client-netty obligations (unknown-type catch, minimal stage) stay as logged above.
+
+## 2026-11-09: Scope check of PR #9: endpoint availability removed, `ClientBuilder` added
+
+**Key Changes:**
+- Deleted `EndpointListener.java` and `EndpointListenerTest.java` (D8 dropped).
+- `EndpointHandle.java`: `isAvailable()` removed; the `unregister` after-close sentence stays.
+- `EndpointHandler.java`, `OutgoingEndpoint.java` and BD-0004's `DECISIONS.md`: restored to
+  `origin/development`.
+- `Client.java`: the three-argument `registerOutgoing` overload removed; endpoint paragraph back to
+  "once the server offers its id"; lifecycle example builds the client with a listener on the
+  `ClientBuilder`; `addListener` points to `ClientBuilder#addListener` for the first attempt.
+- Created `ClientBuilder.java` (D10): `addListener(ClientListener)` returning `ClientBuilder`,
+  `Client connect()`.
+- `ClientListener.java`, `package-info.java`: `EndpointListener` sentences dropped,
+  `ClientBuilder` named.
+- `client-api/CLAUDE.md` and root `CLAUDE.md`: D8 line dropped, `ClientBuilder` added to the
+  builder lines (D10).
+
+**Learnings:**
+- The "stale" `registerOutgoing` links at `EndpointHandle.java:7` and `OutgoingEndpoint.java:7`
+  were identical to `development`; they only read as stale while the three-argument overload
+  existed, and are correct again without an edit.
+- `ClientBuilder` has no `default` method, so JaCoCo lists no lines for it and it needs no test
+  (ADR 0009).
+
+**Deviations from plan:**
+- None.
+
+**Follow-ups noted but not done:**
+- Endpoint registration and availability design moves to its own issue (being drafted
+  separately).
+- client-netty's builder must implement `ClientBuilder` and test that a builder listener hears the
+  first attempt (client-netty epic).
