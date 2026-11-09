@@ -28,8 +28,7 @@ public interface OutgoingEndpoint<T> extends EndpointHandle {
      *     currently offer this endpoint's id, the server's flags for it don't allow the client to
      *     send on it, the server has not yet acknowledged the {@code Supported Endpoints} that
      *     declares it, the client is disconnected, or the client is closed; the message names the
-     *     reason. Apart from {@code null}, these are exactly the cases where
-     *     {@link EndpointHandle#isAvailable()} returns {@code false}.
+     *     reason
      */
     void send(T message);
 }

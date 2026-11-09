@@ -42,11 +42,11 @@
 - Returning `CompletableFuture<Void>`: any caller could `complete()` it for every other caller.
 
 ## D5: Client-wide events go to a `ClientListener` added on the client
-**Status:** Accepted (revised at PR #9 review, 2026-11-06: renamed from `ConnectionListener`, endpoint events split off to D8)
+**Status:** Accepted (revised at PR #9 review, 2026-11-06: renamed from `ConnectionListener`; revised 2026-11-09: may also be added on the `ClientBuilder`, D10)
 
-**Context:** Status, logging and fatal-disconnect callers want connect and disconnect events with the reason, also after reconnects; code that only holds a `Client` must be able to listen. Endpoint usability is D8's.
+**Context:** Status, logging and fatal-disconnect callers want connect and disconnect events with the reason, also after reconnects; code that only holds a `Client` must be able to listen. Endpoint usability is not part of this issue (D8, dropped).
 
-**Decision:** `ClientListener` with `default void onConnect()` and `default void onDisconnect(DisconnectInfo info)`; `Client#addListener` / `removeListener`. Generic on purpose: a later client-wide event is a new default method. Every connection attempt ends with exactly one `onDisconnect`, including attempts that never connected (refused, or a server `Disconnect` in reply to `Handshake`); `onConnect` fires in between only when the attempt connected. Events are delivered in order; no replay for a listener added later. A throwing listener is reported by the implementation, mirroring `EndpointHandler#handle`.
+**Decision:** `ClientListener` with `default void onConnect()` and `default void onDisconnect(DisconnectInfo info)`; `Client#addListener` / `removeListener`. A listener can also be added on the `ClientBuilder` before connecting (D10), so it hears the first attempt. Generic on purpose: a later client-wide event is a new default method. Every connection attempt ends with exactly one `onDisconnect`, including attempts that never connected (refused, or a server `Disconnect` in reply to `Handshake`); `onConnect` fires in between only when the attempt connected. Events are delivered in order; no replay for a listener added later. A throwing listener is reported by the implementation, mirroring `EndpointHandler#handle`.
 
 **Rejected:**
 - Listeners only in the builder: code holding just a `Client` couldn't listen (reconsidered and rejected again at review).
@@ -75,7 +75,7 @@
 - Treating an unknown type as a protocol error (origin `CLIENT`): loses the server's reason for no action the caller could take.
 
 ## D8: Endpoint availability comes with the registration
-**Status:** Accepted (2026-11-06, PR #9 review)
+**Status:** Dropped (2026-11-09, scope check of PR #9: BD-0005 did not ask for endpoint availability. It moves to the separate design issue for endpoint registration and availability. Kept below as history; it binds nothing.)
 
 **Context:** Code that sends or receives on an endpoint needs "can I use this endpoint now", which connection events can't give: at `onConnect` the client's `Supported Endpoints` isn't acknowledged yet, and endpoints come and go while connected.
 
@@ -91,7 +91,21 @@
 
 **Context:** `firstConnection()` reads as a fact, while callers use it to wait until the client is ready.
 
-**Decision:** Renamed to `whenReady()` (D4 otherwise unchanged). Ready means connected, not that an endpoint is usable; the Javadoc points to `EndpointListener` for that.
+**Decision:** Renamed to `whenReady()` (D4 otherwise unchanged). Ready means connected, not that an endpoint is usable.
 
 **Rejected:**
 - `awaitReady()`: suggests a blocking call, but it returns a stage.
+
+## D10: A `ClientBuilder` interface lets a listener be added before connecting
+**Status:** Accepted (2026-11-09, scope check of PR #9; the developer took the proposed answers: `addListener`, `Client` keeps its listener methods, one client per builder)
+
+**Context:** `Client#addListener` can only run after the builder's `connect()` returned the client, and by then the first attempt may already have ended (a refused connection, a server rejecting the version), so its `onDisconnect` is missed. ADR 0018 puts creation in each implementation's builder and leaves the builder's settings and method names open.
+
+**Decision:** `client-api` gets `interface ClientBuilder` with `ClientBuilder addListener(ClientListener listener)` and `Client connect()`, nothing else. Each implementation's builder implements it, may narrow `addListener`'s return type to itself, and keeps every setting of its own. A listener added on the builder is in place before the first attempt starts and after `connect()` is an ordinary listener of the client (removable with `Client#removeListener`); adding one twice does nothing; `null` throws `NullPointerException`. `connect()` returns at once with a connecting client; a failed attempt arrives as `onDisconnect`, never as an exception from `connect()`. One builder makes one client: a second `connect()`, or `addListener` after `connect()`, throws `IllegalStateException`. `Client` keeps `addListener`/`removeListener` (D5). ADR 0018's Decision is unchanged.
+
+**Rejected:**
+- `withListener`: the usual fluent prefix, but Bend has no `with*` methods and the act is the same as `Client#addListener`.
+- Listeners only on the builder, dropping `Client#addListener`: code handed only a `Client` couldn't listen (D5).
+- Every `connect()` making a new client: two clients would silently share listener instances.
+- Settings shared by all implementations (server address) on `ClientBuilder`: that is the common configuration surface ADR 0018 rejected; a new method here needs its own decision.
+- Registering endpoints on the builder: a late registration misses nothing (the client declares it with the next `Supported Endpoints`).

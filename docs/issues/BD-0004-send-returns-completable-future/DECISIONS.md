@@ -9,7 +9,7 @@
 
 **Rejected:**
 - `CompletableFuture<Void>` (the first version of this plan): suggests a delivery result the protocol can't give.
-- An `isAvailable()` query beside `send`: a check-then-send races a disconnect anyway; add one when a caller needs it. (Superseded in part by [BD-0005 D8](/docs/issues/BD-0005-client-lifecycle/DECISIONS.md): `isAvailable()` exists next to availability events; `send` still throws.)
+- An `isAvailable()` query beside `send`: a check-then-send races a disconnect anyway; add one when a caller needs it.
 
 ## D2: Every refused state throws a plain `IllegalStateException`
 **Status:** Accepted (revised at review, 2026-11-06)
