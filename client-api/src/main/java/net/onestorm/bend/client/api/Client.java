@@ -5,16 +5,14 @@ import java.util.concurrent.CompletionStage;
 /**
  * A client of a Bend server.
  *
- * <p>A client is created by an implementation's builder, which returns this interface. It has no
- * {@code connect()} and no settings, so it can be shared with code that must not reconfigure it or
- * connect it again.
+ * <p>A client is created by an implementation's builder, which implements {@link ClientBuilder}
+ * and returns this interface. It has no {@code connect()} and no settings, so it can be shared with
+ * code that must not reconfigure it or connect it again.
  *
  * <p>Endpoints are registered here. A registration belongs to the client, not to one connection,
  * and survives reconnects: after a reconnect the client declares the same endpoints again.
  * Registering an id once as incoming and once as outgoing makes a bidirectional endpoint.
- * Registering does not wait for the server: an endpoint can be used once it is available, see
- * {@link EndpointHandle#isAvailable()}. To act when that happens, give the registration an
- * {@link EndpointListener}; for an incoming endpoint its {@link EndpointHandler} is one.
+ * Registering does not wait for the server: an endpoint can be used once the server offers its id.
  *
  * <p>Endpoint ids are usually declared once, as constants, so an invalid id fails where it is
  * defined:
@@ -33,23 +31,24 @@ import java.util.concurrent.CompletionStage;
  * because {@link #close()} was called or because the implementation stopped trying, the client is
  * closed for good. A client is therefore either still trying to connect or closed.
  *
+ * <p>A listener added on the {@link ClientBuilder} hears the first connection attempt too:
+ *
  * <pre>{@code
- * client.addListener(new ClientListener() {
- *     @Override
- *     public void onDisconnect(DisconnectInfo info) {
- *         log.info("disconnected: " + info);
- *     }
- * });
+ * Client client = builder
+ *         .addListener(new ClientListener() {
+ *             @Override
+ *             public void onDisconnect(DisconnectInfo info) {
+ *                 log.info("disconnected: " + info);
+ *             }
+ *         })
+ *         .connect();
  * client.whenReady().toCompletableFuture().get(10, TimeUnit.SECONDS);
  * }</pre>
  */
 public interface Client extends AutoCloseable {
 
     /**
-     * Registers an endpoint the client sends messages on, without a listener.
-     *
-     * <p>The same as {@link #registerOutgoing(NamespacedId, EndpointCodec, EndpointListener)} with a
-     * listener that does nothing.
+     * Registers an endpoint the client sends messages on.
      *
      * @param <T> the type of message the endpoint sends
      * @param id the endpoint's id
@@ -62,33 +61,12 @@ public interface Client extends AutoCloseable {
     <T> OutgoingEndpoint<T> registerOutgoing(NamespacedId id, EndpointCodec<T> codec);
 
     /**
-     * Registers an endpoint the client sends messages on, with a listener that is told when the
-     * endpoint becomes available and when it stops being available.
-     *
-     * <p>The listener belongs to this registration: it gets every change from the start, and is not
-     * called again after {@link EndpointHandle#unregister()} returns. See {@link EndpointListener}.
-     *
-     * @param <T> the type of message the endpoint sends
-     * @param id the endpoint's id
-     * @param codec the codec that encodes the messages sent on the endpoint
-     * @param listener the listener that is told about the endpoint's availability
-     * @return the handle of the new registration
-     * @throws NullPointerException if {@code id}, {@code codec} or {@code listener} is {@code null}
-     * @throws IllegalStateException if {@code id} is already registered as outgoing on this client,
-     *     or the client is closed
-     */
-    <T> OutgoingEndpoint<T> registerOutgoing(NamespacedId id, EndpointCodec<T> codec,
-            EndpointListener<OutgoingEndpoint<T>> listener);
-
-    /**
      * Registers an endpoint the client receives messages on.
      *
      * @param <T> the type of message the endpoint receives
      * @param id the endpoint's id
      * @param codec the codec that decodes the messages received on the endpoint
-     * @param handler the handler that receives each decoded message, and, as an
-     *     {@link EndpointListener}, is told when the endpoint becomes available and when it stops
-     *     being available
+     * @param handler the handler that receives each decoded message
      * @return the handle of the new registration
      * @throws NullPointerException if {@code id}, {@code codec} or {@code handler} is {@code null}
      * @throws IllegalStateException if {@code id} is already registered as incoming on this client,
@@ -122,8 +100,7 @@ public interface Client extends AutoCloseable {
      * callers.
      *
      * <p>Ready means connected, not that a given endpoint can be used: the server may not offer it
-     * yet, and the client's own {@code Supported Endpoints} may not be acknowledged yet. To act when
-     * an endpoint can be used, give its registration an {@link EndpointListener}.
+     * yet, and the client's own {@code Supported Endpoints} may not be acknowledged yet.
      *
      * <p>To block until ready, call {@code whenReady().toCompletableFuture().get(timeout, unit)} on
      * a thread of your own. Callbacks chained on the stage may run on the implementation's I/O
@@ -138,7 +115,9 @@ public interface Client extends AutoCloseable {
      * disconnecting.
      *
      * <p>Adding a listener that is already added does nothing. The listener is not told about a
-     * connection that was already made when it was added; see {@link ClientListener}.
+     * connection that was already made when it was added; see {@link ClientListener}. To hear the
+     * first connection attempt, add the listener with
+     * {@link ClientBuilder#addListener(ClientListener)} instead.
      *
      * @param listener the listener to add
      * @throws NullPointerException if {@code listener} is {@code null}
