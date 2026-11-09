@@ -54,9 +54,10 @@ Each module has its own `CLAUDE.md` with the rules specific to it.
   `IllegalArgumentException` for a bad argument and `IllegalStateException` for a call the
   current state forbids. ([0011](/docs/decisions/0011-protocol-exception.md), BD-0003 D6,
   [DECISIONS.md](/docs/issues/BD-0003-endpoint-registration-typed-handles/DECISIONS.md))
-- A `Client` comes from its implementation's builder, which returns the `client-api` `Client`
-  interface; `client-api` depends on nothing.
-  ([0018](/docs/decisions/0018-client-built-by-implementation-builder.md))
+- A `Client` comes from its implementation's builder, which implements `client-api`'s
+  `ClientBuilder` and returns the `client-api` `Client` interface; `client-api` depends on nothing.
+  ([0018](/docs/decisions/0018-client-built-by-implementation-builder.md), BD-0005 D10,
+  [DECISIONS.md](/docs/issues/BD-0005-client-lifecycle/DECISIONS.md))
 - Lombok is for `protocol` and the `-netty` modules only; an API module never uses it, not even
   `compileOnly`. (BD-0001 D8,
   [DECISIONS.md](/docs/issues/BD-0001-namespaced-id-value-type/DECISIONS.md))
