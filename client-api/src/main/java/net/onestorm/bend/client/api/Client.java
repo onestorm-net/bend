@@ -144,7 +144,7 @@ public interface Client extends AutoCloseable {
      * does nothing. A message that arrived but was not yet given to its handler is dropped; a
      * handler call already running may still finish. If a connection attempt was in progress or
      * connected, listeners get its final {@link ClientListener#onDisconnect(DisconnectInfo)},
-     * with origin {@link DisconnectOrigin#CLOSED}, possibly after this method returns.
+     * with type {@link DisconnectType#GENERIC}, possibly after this method returns.
      *
      * <p>This method does not wait for the connection to close, so it can be called from an
      * endpoint handler or a connection listener. Calling it again does nothing. The client sends no

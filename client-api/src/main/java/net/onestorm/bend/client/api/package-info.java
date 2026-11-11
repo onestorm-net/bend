@@ -18,8 +18,7 @@
  * <p>A {@link net.onestorm.bend.client.api.Client} reports whether it is connected, tells a
  * {@link net.onestorm.bend.client.api.ClientListener} when it connects and disconnects, with a
  * {@link net.onestorm.bend.client.api.DisconnectInfo} (its
- * {@link net.onestorm.bend.client.api.DisconnectOrigin} and
- * {@link net.onestorm.bend.client.api.DisconnectType}) saying why, and is shut down for good with
- * {@link net.onestorm.bend.client.api.Client#close()}.
+ * {@link net.onestorm.bend.client.api.DisconnectType} and a reason) saying why, and is shut down
+ * for good with {@link net.onestorm.bend.client.api.Client#close()}.
  */
 package net.onestorm.bend.client.api;

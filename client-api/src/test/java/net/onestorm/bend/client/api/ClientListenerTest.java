@@ -17,7 +17,7 @@ class ClientListenerTest {
 
     @Test
     void onDisconnect_notOverridden_doesNothing() {
-        DisconnectInfo info = DisconnectInfo.of(DisconnectOrigin.CLOSED, DisconnectType.GENERIC, "");
+        DisconnectInfo info = DisconnectInfo.of(DisconnectType.GENERIC, "");
 
         assertThatCode(() -> listener.onDisconnect(info)).doesNotThrowAnyException();
     }

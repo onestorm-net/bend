@@ -5,7 +5,18 @@ package net.onestorm.bend.client.api;
  *
  * <p>The constants mirror the {@code Type} of the protocol's {@code Disconnect} packet
  * (protocol-v1, "Disconnect"), with the same ids. A disconnect the server did not send is given a
- * type too, see {@link DisconnectOrigin}, so one switch on the type works for every disconnect.
+ * type too, so one switch on the type works for every disconnect:
+ *
+ * <ul>
+ *   <li>The server sent a {@code Disconnect}: the type and reason the server sent. A type id this
+ *       client does not know is reported as {@link #GENERIC}, with the server's reason kept.
+ *   <li>The client gave up because the server broke a rule the protocol makes the client enforce
+ *       (protocol-v1, "Client-side disconnect conditions"): {@link #TIMEOUT} when the server did
+ *       not answer in time, {@link #PROTOCOL_ERROR} when it sent packets out of order, an invalid
+ *       packet, or an endpoint message the client may not accept.
+ *   <li>The connection could not be opened, was lost without a {@code Disconnect}, or was ended by
+ *       {@link Client#close()}: {@link #GENERIC}, with a reason that describes the cause.
+ * </ul>
  */
 public enum DisconnectType {
 
