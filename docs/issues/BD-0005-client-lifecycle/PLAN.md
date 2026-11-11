@@ -192,6 +192,7 @@ All in `client-api`, package `net.onestorm.bend.client.api`:
     - `Client#close` Javadoc: the final `onDisconnect` has type `GENERIC`; `package-info.java`:
       the info carries a type and a reason.
     - `DisconnectInfoTest` and `ClientListenerTest` without the origin.
+    - This plan's Surface and Edge Cases prose names types only, no origin values.
 
 ## Sweep Inventory
 
@@ -218,8 +219,8 @@ plus the new `Client` members:
 `DisconnectPacket#decode`, which does not range-check it) and its `Reason` (`String (256)`, already
 bounded by `ProtocolUtil#readString` with `MAXIMUM_REASON_LENGTH`). The API must not let an out-of-range
 type escape as an exception into the pipeline: `DisconnectType#fromId` throws
-`IllegalArgumentException` for unknown ids, so client-netty checks the id and maps an unknown one to
-`GENERIC` (D7) instead of calling `fromId` blind. Nothing is sized by these values. Proof:
+`IllegalArgumentException` for unknown ids, so client-netty catches that exception and reports
+`GENERIC` with the server's reason kept (D7), keeping the 0 to 3 range only in `DisconnectType`. Nothing is sized by these values. Proof:
 `DisconnectTypeTest#fromId_unknownId_throws` (the contract); the client-netty mapping test belongs
 to the client-netty epic.
 
@@ -261,7 +262,7 @@ order.
 No `ByteBuf`, channel or future crosses the API. New per-client state the caller controls: the
 listener set, bounded by the caller's own adds and deduplicated by identity (D5), whether added on
 the builder or the client (D10). `close()` is the point after which the implementation frees the
-connection, its scheduled timeouts and, after delivering the final `onDisconnect` (`CLOSED`), the
+connection, its scheduled timeouts and, after delivering the final `onDisconnect` (`GENERIC`), the
 listener set; the contract promises only that no new work starts (D2), and client-netty owns the
 actual release and its timing. One builder makes one client (D10), so no listener instance is
 shared between clients by accident. `whenReady()` returns a stage the caller cannot complete, so
@@ -273,7 +274,7 @@ The contract maps protocol-v1.md onto the caller's view without changing the wir
 the client has sent `Available Endpoints Acknowledged`, § Flow step 3 ("Client MUST respond
 with `Available Endpoints Acknowledged`"), the step after which endpoint messages may flow; the
 `DisconnectType` constants are § Disconnect's table (0 Generic, 1 Protocol error, 2 Unsupported
-version, 3 Timeout, ADR 0007); `CLIENT` covers § Client-side disconnect conditions ("The client MUST
+version, 3 Timeout, ADR 0007); `TIMEOUT` and `PROTOCOL_ERROR` also cover § Client-side disconnect conditions ("The client MUST
 disconnect (give up on the connection) when ..."). The spec has no client-to-server `Disconnect`, so
 `close()` sends nothing (D2). The spec's type table has no rule for an unknown type; D7 reads it as
 type 0 ("Generic; See Reason") on the client and deliberately does not edit the spec: a
@@ -326,7 +327,7 @@ implementation.
 | 4b | `package-info.java` names the lifecycle types and `ClientBuilder`, and `client-api/CLAUDE.md` has the rule lines from Documentation Sync, each linking this DECISIONS.md | read both files |
 | 5 | `send`'s signature, refused states and Javadoc are unchanged and `client-api` has no per-send future | `git diff origin/development -- client-api/src/main/java/net/onestorm/bend/client/api/OutgoingEndpoint.java` is empty |
 | 6 | Javadoc builds cleanly | `./gradlew :bend-client-api:javadoc --rerun` shows no warning |
-| 3c | No trace of `DisconnectOrigin` in code or rules (D6 revised) | `grep -rn "DisconnectOrigin\|getOrigin" client-api CLAUDE.md` finds nothing |
+| 3c | No trace of `DisconnectOrigin` in code, rules or this plan's current prose (D6 revised) | `grep -rn "DisconnectOrigin\|getOrigin" client-api CLAUDE.md` finds nothing; PLAN.md names it only in the revision notes, Approach 2 (marked dropped) and Approach 13 |
 | 7 | Kendo BD-0005's acceptance criteria say `send` throws after close (D3), describe D1 to D7, D9 and D10, and no longer ask for endpoint availability (D8) | read it with `prepare-issue-context-tool` |
 
 ## Reuse and patterns
@@ -391,16 +392,16 @@ are reachable lines):
 
 ## Edge Cases
 - **Server rejects the version at handshake:** `onConnect` never fires; `onDisconnect` with
-  `SERVER`/`UNSUPPORTED_VERSION`; with no further attempt the client closes and
+  `UNSUPPORTED_VERSION`; with no further attempt the client closes and
   `whenReady()` fails naming that disconnect (D1, D4). A listener added only on the `Client`
   after `connect()` may miss this; one added on the builder does not (D10).
 - **`close()` before the first connection:** `whenReady()` completes exceptionally with
-  `IllegalStateException`; listeners get `onDisconnect` `CLOSED` if an attempt was in progress.
+  `IllegalStateException`; listeners get `onDisconnect` (`GENERIC`) if an attempt was in progress.
 - **`close()` called twice, or from inside a listener or handler:** the second call does nothing;
   inside a callback it returns without waiting (D2).
 - **`send` racing `close()` on another thread:** throws, or is accepted and dropped without a
   report (D3, BD-0004 D3).
-- **Server sends `Disconnect` type 9:** `SERVER`/`GENERIC`, server's reason kept (D7).
+- **Server sends `Disconnect` type 9:** `GENERIC`, server's reason kept (D7).
 - **Listener added while connected:** gets no `onConnect`; reads `isConnected()` after adding (D5).
 - **Listener throws:** reported by the implementation; other listeners still get the event; the
   connection is unaffected (D5).
@@ -410,7 +411,7 @@ are reachable lines):
 - **`connect()` twice, or `addListener` after `connect()` on a builder:** `IllegalStateException`
   (D10, question 3).
 - **`connect()` with an unreachable server:** returns a client; the failure arrives as
-  `onDisconnect` (`CONNECTION`/`GENERIC`) on the builder's listeners (D10).
+  `onDisconnect` (`GENERIC`) on the builder's listeners (D10).
 
 ## Risks
 - `Client extends AutoCloseable` makes compilers warn about a `Client` not closed in
