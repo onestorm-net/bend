@@ -104,3 +104,25 @@
   separately).
 - client-netty's builder must implement `ClientBuilder` and test that a builder listener hears the
   first attempt (client-netty epic).
+
+## 2026-11-11: PR #9 review: `DisconnectOrigin` removed
+
+**Key Changes:**
+- Deleted `DisconnectOrigin.java` (D6 revised: not important for v0.1).
+- `DisconnectInfo.java`: `of(type, reason)`, `getType()`, `getReason()`; `equals`, `hashCode` and
+  `toString` over type and reason.
+- `DisconnectType.java`: the class Javadoc now says which type each kind of disconnect gets (the
+  part of D6/D7 that `DisconnectOrigin`'s constants used to carry).
+- `Client#close` Javadoc: the final `onDisconnect` has type `GENERIC`; `package-info.java`: names
+  the type and a reason.
+- Tests: `DisconnectInfoTest` without the origin (`of_nullOrigin_throws` removed),
+  `ClientListenerTest` updated.
+
+**Learnings:**
+- None.
+
+**Deviations from plan:**
+- None beyond the review decision, which PLAN.md and DECISIONS.md now carry.
+
+**Follow-ups noted but not done:**
+- None: if the origin is needed later, it comes as a feature request.

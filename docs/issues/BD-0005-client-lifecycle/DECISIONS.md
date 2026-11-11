@@ -52,27 +52,28 @@
 - Listeners only in the builder: code holding just a `Client` couldn't listen (reconsidered and rejected again at review).
 - `subscribe` returning a handle, or a sealed event type: more API than a client-wide event this rare needs.
 
-## D6: `DisconnectInfo` carries origin, type and reason, all always present
-**Status:** Accepted
+## D6: `DisconnectInfo` carries type and reason, both always present
+**Status:** Accepted (revised 2026-11-11, the developer's review of PR #9: `DisconnectOrigin` dropped for v0.1; the developer doesn't find it important yet. A later feature request can bring it back.)
 
 **Context:** The issue wants a server-sent `Type` and `Reason`, but a connection also ends because the client gave up (protocol-v1.md § Client-side disconnect conditions), the socket failed, or `close()` was called.
 
-**Decision:** Final class `DisconnectInfo.of(DisconnectOrigin, DisconnectType, String reason)` with getters, `equals`, `hashCode`, `toString`. `DisconnectOrigin` is `SERVER`, `CLIENT`, `CONNECTION` or `CLOSED`. For `SERVER` type and reason are the server's; for `CLIENT` the type is `TIMEOUT` or `PROTOCOL_ERROR`; for `CONNECTION` and `CLOSED` it is `GENERIC`. One switch on the type works for every origin.
+**Decision:** Final class `DisconnectInfo.of(DisconnectType, String reason)` with getters, `equals`, `hashCode`, `toString`. Every disconnect gets a type: a server `Disconnect` keeps the server's type and reason; when the client gives up (§ Client-side disconnect conditions) the type is `TIMEOUT` or `PROTOCOL_ERROR`; a failed or lost connection and `close()` give `GENERIC`. One switch on the type works for every disconnect.
 
 **Rejected:**
 - An `Optional<DisconnectType>` present only for `SERVER`: forces every caller to handle the empty case for the common branch (retry on timeout).
-- A `Throwable` cause for `CONNECTION`: nothing reads it yet; a getter can be added later without breaking callers.
+- A `Throwable` cause for a failed connection: nothing reads it yet; a getter can be added later without breaking callers.
+- (2026-11-11) A `DisconnectOrigin` (`SERVER`, `CLIENT`, `CONNECTION`, `CLOSED`) next to the type, as first accepted: dropped on the developer's review of PR #9, not important for v0.1.
 
 ## D7: `DisconnectType` mirrors the spec table; an unknown wire type reads as `GENERIC`
 **Status:** Accepted
 
 **Context:** `DisconnectPacket#decode` reads `Type` as any VarInt and does not check it, so a server can send a type this client doesn't know (ADR 0007 leaves adding types open).
 
-**Decision:** `enum DisconnectType { GENERIC, PROTOCOL_ERROR, UNSUPPORTED_VERSION, TIMEOUT }` with `getId()` (0 to 3) and `static fromId(int)`, which throws `IllegalArgumentException` for any other id. client-netty reports a server `Disconnect` with an unknown type as origin `SERVER`, type `GENERIC`, the server's reason kept, by catching `fromId`'s `IllegalArgumentException` so the 0 to 3 range lives only in `DisconnectType`: the spec's type 0 means "See Reason", and the connection is ending anyway.
+**Decision:** `enum DisconnectType { GENERIC, PROTOCOL_ERROR, UNSUPPORTED_VERSION, TIMEOUT }` with `getId()` (0 to 3) and `static fromId(int)`, which throws `IllegalArgumentException` for any other id. client-netty reports a server `Disconnect` with an unknown type as type `GENERIC`, the server's reason kept, by catching `fromId`'s `IllegalArgumentException` so the 0 to 3 range lives only in `DisconnectType`: the spec's type 0 means "See Reason", and the connection is ending anyway.
 
 **Rejected:**
 - `fromId` returning `GENERIC` for unknown ids: hides a caller's mistake in a public method.
-- Treating an unknown type as a protocol error (origin `CLIENT`): loses the server's reason for no action the caller could take.
+- Treating an unknown type as a client-side protocol error: loses the server's reason for no action the caller could take.
 
 ## D8: Endpoint availability comes with the registration
 **Status:** Dropped (2026-11-09, scope check of PR #9: BD-0005 did not ask for endpoint availability. It moves to the separate design issue for endpoint registration and availability. Kept below as history; it binds nothing.)

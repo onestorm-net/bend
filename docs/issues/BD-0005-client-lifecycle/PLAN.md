@@ -21,6 +21,9 @@ Revised after the PR #9 scope check (2026-11-09):
 - New: a `ClientBuilder` interface in `client-api`, so a `ClientListener` can be added before the
   client connects and hears the first attempt's events (D10, Approach 12).
 
+Revised after the developer's review of PR #9 (2026-11-11): `DisconnectOrigin` is dropped for
+v0.1 (D6 revised); `DisconnectInfo` carries only the type and the reason (Approach 13).
+
 ## Questions settled at the 2026-11-09 revision
 
 The developer approved the proposed answer to each (D10).
@@ -51,9 +54,9 @@ The developer approved the proposed answer to each (D10).
 | Client events | `ClientListener` (`onConnect`, `onDisconnect(DisconnectInfo)`, both `default`; later client-wide events are new defaults), `Client#addListener` / `removeListener` (D5) | `EndpointHandler#handle` Javadoc: a throwing callback is reported, connection stays open |
 | Listener before connecting | `interface ClientBuilder` in `client-api`: `ClientBuilder addListener(ClientListener)` and `Client connect()`; an implementation's builder implements it and keeps all its own settings (D10) | ADR 0018 Decision (builder's `connect()` returns `Client`; `Client` has no `connect()`), its "Does not decide" leaves builder method names open |
 | Endpoint availability | Dropped (D8): moves to a separate design issue | Scope check of PR #9: not in BD-0005 |
-| Disconnect info | Final class `DisconnectInfo.of(origin, type, reason)` with getters, `equals`, `hashCode`, `toString` (D6) | `NamespacedId`: final class, static `of`, `Objects.requireNonNull`, getters, value equality |
+| Disconnect info | Final class `DisconnectInfo.of(type, reason)` with getters, `equals`, `hashCode`, `toString` (D6) | `NamespacedId`: final class, static `of`, `Objects.requireNonNull`, getters, value equality |
 | Disconnect type | `enum DisconnectType` with `getId()` and `fromId(int)`; unknown id from the wire read as `GENERIC` by client-netty (D7) | protocol-v1.md § Disconnect type table; ADR 0007; `DisconnectPacket#decode` reads `Type` unchecked |
-| Disconnect origin | `enum DisconnectOrigin { SERVER, CLIENT, CONNECTION, CLOSED }` (D6) | protocol-v1.md § Client-side disconnect conditions (the `CLIENT` cases) |
+| Disconnect origin | Dropped (D6 revised, 2026-11-11): not important for v0.1 | Developer's review of PR #9 |
 
 **Layer compliance:** every new type is in `client-api` (`net.onestorm.bend.client.api`) and uses
 only `java.lang`, `java.util` (`Objects`) and `java.util.concurrent` (`CompletionStage`).
@@ -66,20 +69,19 @@ implementation: ADR 0018's "`client-api` holds no configuration" and "`Client` h
 
 | Class | Inputs/outputs | Hidden behaviour | Test seam | Shallow-test reckoning | Verdict |
 |---|---|---|---|---|---|
-| `Client` (new members) | `close()`, `isConnected()`, `whenReady()`, `add/removeListener` | the whole connection state machine, reconnects, handshake | client-netty: connect, drop, reconnect, close, observe events | A second lifecycle need (say, a "reconnecting now" signal) is a new `DisconnectOrigin` value or listener method, not a `Client` method per flow step | Deep |
+| `Client` (new members) | `close()`, `isConnected()`, `whenReady()`, `add/removeListener` | the whole connection state machine, reconnects, handshake | client-netty: connect, drop, reconnect, close, observe events | A second lifecycle need (say, a "reconnecting now" signal) is a new `DisconnectType` value or listener method, not a `Client` method per flow step | Deep |
 | `ClientListener` | two callbacks | none (extension point) | client-netty event order | A new event kind adds a `default` method; extension point, exempt per the lens | Exempt (extension point) |
 | `ClientBuilder` | `addListener`, `connect()` | creating the client and starting its first attempt with the listeners in place | client-netty's builder: a listener added there gets the first attempt's events | Only what code holding just the interface needs; every setting stays on the implementation's builder, so no new setting lands here | Exempt (builder: collects and constructs) |
-| `DisconnectInfo` | `of(origin, type, reason)`, three getters | null checks, value equality | `DisconnectInfoTest` | A new disconnect cause is a new `DisconnectOrigin` value (parameter), not a new factory | Exempt (value class) |
+| `DisconnectInfo` | `of(type, reason)`, two getters | null checks, value equality | `DisconnectInfoTest` | A new disconnect cause is a new `DisconnectType` value (parameter), not a new factory | Exempt (value class) |
 | `DisconnectType` | `getId()`, `fromId(int)` | the spec id table | `DisconnectTypeTest` | A new spec type is a new constant | Exempt (value enum) |
-| `DisconnectOrigin` | four constants | none | via `DisconnectInfoTest` | A new cause is a new constant | Exempt (value enum) |
 
 ## Scope
 - **In scope:** in `client-api/src/main/java/net/onestorm/bend/client/api/`: `Client.java` (new
   members, Javadoc), new `ClientListener.java`, `ClientBuilder.java`, `DisconnectInfo.java`,
-  `DisconnectOrigin.java`, `DisconnectType.java`; `EndpointHandle.java` (`unregister` after
+  `DisconnectType.java`; `EndpointHandle.java` (`unregister` after
   close); `package-info.java`; tests `DisconnectTypeTest`, `DisconnectInfoTest`,
   `ClientListenerTest`; `client-api/CLAUDE.md` rule lines; the Kendo BD-0005 acceptance criteria
-  (D3, D8 dropped, D10).
+  (D3, D6 revised, D8 dropped, D10).
 - **Out of scope:** reconnect policy and every other setting, and the concrete builder
   (client-netty epic); the client-netty implementation and its behaviour tests; which thread runs
   listeners and handlers and whether `close()` is safe from any thread (BD-0006); a `getState()`
@@ -99,13 +101,13 @@ All in `client-api`, package `net.onestorm.bend.client.api`:
    `IllegalArgumentException` for any other id (D7). Javadoc on the type, on every constant (its
    spec id and meaning), on `getId()` and on `fromId()`, linking protocol-v1.md § Disconnect, so
    `javadoc` reports no missing comment. Test: `DisconnectTypeTest`.
-2. `DisconnectOrigin.java`: enum `SERVER`, `CLIENT`, `CONNECTION`, `CLOSED`, each constant's Javadoc
+2. (Dropped by step 13) `DisconnectOrigin.java`: enum `SERVER`, `CLIENT`, `CONNECTION`, `CLOSED`, each constant's Javadoc
    saying which types it carries (D6), and that for `SERVER` an unknown wire type reads as
    `GENERIC` (D7).
 3. `DisconnectInfo.java`: final class mirroring `NamespacedId`: private constructor,
-   `static of(DisconnectOrigin origin, DisconnectType type, String reason)` with
+   `static of(DisconnectType type, String reason)` (step 13; first with a `DisconnectOrigin`) with
    `Objects.requireNonNull` per argument (empty reason allowed: the spec allows it),
-   `getOrigin()`, `getType()`, `getReason()`, `equals`, `hashCode`, `toString`. Immutable, safe to
+   `getType()`, `getReason()`, `equals`, `hashCode`, `toString`. Immutable, safe to
    share. Test: `DisconnectInfoTest`.
 4. `ClientListener.java`: `default void onConnect()`, `default void onDisconnect(DisconnectInfo
    info)`. Javadoc: every attempt ends with exactly one `onDisconnect`, `onConnect` only when the
@@ -128,7 +130,7 @@ All in `client-api`, package `net.onestorm.bend.client.api`:
      right after it returns.
    - `close()` Javadoc: D2; a message already decoded but not yet given to its handler when
      `close()` returns is dropped, a handler call already running finishes; listeners get the
-     final `onDisconnect` (`CLOSED`) before the implementation releases them.
+     final `onDisconnect` (`GENERIC`) before the implementation releases them.
 6. `EndpointHandle.java`: `unregister` Javadoc: after the client is closed it does nothing.
 7. `package-info.java`: one sentence on the lifecycle types.
 8. `client-api/CLAUDE.md`: rule lines (Documentation Sync).
@@ -180,6 +182,16 @@ All in `client-api`, package `net.onestorm.bend.client.api`:
       `ClientBuilder#addListener` before connecting or `Client#addListener` afterwards.
     - `package-info.java`: names `ClientBuilder` where it says a client is created by an
       implementation's builder.
+13. (Developer's review of PR #9, 2026-11-11) Remove `DisconnectOrigin` (D6 revised):
+    - Delete `DisconnectOrigin.java`.
+    - `DisconnectInfo.java`: `of(DisconnectType type, String reason)`, no `getOrigin()`; `equals`,
+      `hashCode`, `toString` over type and reason.
+    - `DisconnectType.java`: the class Javadoc lists which type each kind of disconnect gets
+      (server `Disconnect`, unknown wire type, client gives up, failed or lost connection,
+      `close()`), the text `DisconnectOrigin`'s constants carried.
+    - `Client#close` Javadoc: the final `onDisconnect` has type `GENERIC`; `package-info.java`:
+      the info carries a type and a reason.
+    - `DisconnectInfoTest` and `ClientListenerTest` without the origin.
 
 ## Sweep Inventory
 
@@ -217,16 +229,16 @@ path: `connect()` → attempt → `onConnect` → `whenReady()` completes → `i
 listener added on the `ClientBuilder` sees this from the first attempt (D10). Failure walk:
 TCP refused or reset, or a silent server hitting the § Client-side disconnect conditions 30-second
 handshake or keep-alive timeout, each ends the attempt with one `onDisconnect`
-(`CONNECTION`/`GENERIC`, or `CLIENT`/`TIMEOUT`); a server `Disconnect` in reply to `Handshake`
-(unsupported version) ends it with `SERVER`/`UNSUPPORTED_VERSION` even though `onConnect` never
+(`GENERIC`, or `TIMEOUT`); a server `Disconnect` in reply to `Handshake`
+(unsupported version) ends it with `UNSUPPORTED_VERSION` even though `onConnect` never
 fired; invalid built-in packets, out-of-order packets, or a server `Endpoint Message` on an
-unavailable endpoint or in a direction its flags forbid give `CLIENT`/`PROTOCOL_ERROR`; a server
-that half-closes or closes without a `Disconnect` gives `CONNECTION`/`GENERIC`; local
-`close()` gives `CLOSED`/`GENERIC`. The timeouts themselves (30 s, ADR 0006) and their
+unavailable endpoint or in a direction its flags forbid give `PROTOCOL_ERROR`; a server
+that half-closes or closes without a `Disconnect` gives `GENERIC`; local
+`close()` gives `GENERIC`. The timeouts themselves (30 s, ADR 0006) and their
 cancellation are client-netty's; this contract only fixes what the caller observes in each case, so
 no failure is silent. `whenReady()` never hangs: it completes or the client closes (D1),
 which fails it. `connect()` never throws for a failed attempt (D10). Proof: N/A in `client-api`:
-no implementation to drive; `onDisconnect` exactly once per attempt, with the origin and type
+no implementation to drive; `onDisconnect` exactly once per attempt, with the type
 above, and the builder listener getting the first attempt, are client-netty epic tests.
 
 ### Threading and the event loop
@@ -271,8 +283,7 @@ builder is not on the wire. No spec edit, no version bump. Proof:
 `DisconnectTypeTest#getId_eachType_matchesSpecTable`.
 
 ### Public API surface, module boundaries and enforcement
-New public types: `ClientListener`, `ClientBuilder`, `DisconnectInfo`, `DisconnectOrigin`,
-`DisconnectType`; new `Client` members `close`, `isConnected`, `whenReady`, `addListener`,
+New public types: `ClientListener`, `ClientBuilder`, `DisconnectInfo`, `DisconnectType`; new `Client` members `close`, `isConnected`, `whenReady`, `addListener`,
 `removeListener`. Compared with the PR as it stands, `EndpointListener`,
 `EndpointHandle#isAvailable`, the three-argument `registerOutgoing` and `EndpointHandler extends
 EndpointListener` are removed again (D8 dropped); none of them is on `development`, so nothing
@@ -289,7 +300,7 @@ stops trying closes the client" (D1), "an unknown wire type reads as `GENERIC`" 
 builder listener hears the first attempt" (D10) are L4 here (Javadoc and review), L2 once
 client-netty's tests exist. The trade-off is that `client-api` has no implementation to test
 against yet.
-Proof: `./gradlew :bend-client-api:javadoc --rerun` shows no warning; `DisconnectInfoTest#of_nullOrigin_throws`.
+Proof: `./gradlew :bend-client-api:javadoc --rerun` shows no warning; `DisconnectInfoTest#of_nullType_throws`.
 
 ### Runtime endpoint add and remove
 N/A since the 2026-11-09 revision: this issue no longer touches endpoints beyond D2's
@@ -310,11 +321,12 @@ implementation.
 | 3 | `Client` extends `AutoCloseable` and declares `close()` without a checked exception, `isConnected()`, `whenReady()`, `addListener`, `removeListener`, and exactly one `registerOutgoing(id, codec)` | `./gradlew :bend-client-api:build` passes; read `Client.java` |
 | 3a | `ClientBuilder` declares `addListener(ClientListener)` returning `ClientBuilder` and `Client connect()`, nothing else; its Javadoc states D10 (first attempt heard, returns at once, failures as `onDisconnect`, one client per builder) | read `ClientBuilder.java` against D10 |
 | 3b | No trace of D8 in code or rules: `EndpointListener` and `EndpointListenerTest` are gone, `EndpointHandle` has no `isAvailable`, and `EndpointHandler.java`, `OutgoingEndpoint.java` and BD-0004's `DECISIONS.md` equal `origin/development` | `grep -rn "EndpointListener\|isAvailable" client-api CLAUDE.md` finds nothing; `git diff origin/development -- client-api/src/main/java/net/onestorm/bend/client/api/EndpointHandler.java client-api/src/main/java/net/onestorm/bend/client/api/OutgoingEndpoint.java docs/issues/BD-0004-send-returns-completable-future/DECISIONS.md` is empty |
-| 4 | Javadoc of `close`, `registerOutgoing`, `registerIncoming`, `addListener`, `EndpointHandle#unregister` states D2's after-close behaviour (including in-flight messages); `ClientListener` states D5's event rules and both places to add it; `DisconnectOrigin` states D6/D7's type per origin | read the Javadoc against D2, D5 to D7, D10 |
+| 4 | Javadoc of `close`, `registerOutgoing`, `registerIncoming`, `addListener`, `EndpointHandle#unregister` states D2's after-close behaviour (including in-flight messages); `ClientListener` states D5's event rules and both places to add it; `DisconnectType` states D6/D7's type per kind of disconnect | read the Javadoc against D2, D5 to D7, D10 |
 | 4a | `whenReady()` Javadoc states D4 (completes once, never resets, fails with `IllegalStateException` when closed first, not completable by the caller, callbacks must not block); `isConnected()` Javadoc states the § Flow step 3 definition and cross-thread visibility; `add/removeListener` state `NullPointerException` for `null`, and duplicate add and unknown remove as no-ops | read the Javadoc against D4, D5 and Approach 5 |
 | 4b | `package-info.java` names the lifecycle types and `ClientBuilder`, and `client-api/CLAUDE.md` has the rule lines from Documentation Sync, each linking this DECISIONS.md | read both files |
 | 5 | `send`'s signature, refused states and Javadoc are unchanged and `client-api` has no per-send future | `git diff origin/development -- client-api/src/main/java/net/onestorm/bend/client/api/OutgoingEndpoint.java` is empty |
 | 6 | Javadoc builds cleanly | `./gradlew :bend-client-api:javadoc --rerun` shows no warning |
+| 3c | No trace of `DisconnectOrigin` in code or rules (D6 revised) | `grep -rn "DisconnectOrigin\|getOrigin" client-api CLAUDE.md` finds nothing |
 | 7 | Kendo BD-0005's acceptance criteria say `send` throws after close (D3), describe D1 to D7, D9 and D10, and no longer ask for endpoint availability (D8) | read it with `prepare-issue-context-tool` |
 
 ## Reuse and patterns
@@ -353,11 +365,11 @@ here to test. `ClientBuilder` has no `default` method, so it has no reachable li
 
 | Test | Behaviour | Red case |
 |---|---|---|
-| `of_validArguments_returnsThem` | getters return origin, type and reason | fails when a getter returns the wrong field |
+| `of_validArguments_returnsThem` | getters return type and reason | fails when a getter returns the wrong field |
 | `of_emptyReason_accepted` | `""` is a valid reason | fails when an empty server reason is rejected |
-| `of_nullOrigin_throws`, `of_nullType_throws`, `of_nullReason_throws` | `NullPointerException` | fails when a `null` slips into the value |
+| `of_nullType_throws`, `of_nullReason_throws` | `NullPointerException` | fails when a `null` slips into the value |
 | `equals_sameFields_equalWithSameHashCode` | equal fields, equal objects and hashes; a different field, not equal | fails when equality ignores a field |
-| `toString_containsFields` | origin, type and reason appear | fails when `toString` drops a field |
+| `toString_containsFields` | type and reason appear | fails when `toString` drops a field |
 
 `ClientListenerTest` (added at implementation; the JaCoCo gap check showed the `default` bodies
 are reachable lines):
@@ -373,7 +385,7 @@ are reachable lines):
 | Source change | Document | Update / N/A |
 |---|---|---|
 | Wire format, packet fields, limits, MUST/disconnect rules, flow | `protocol/protocol-v1.md` | N/A: no wire or rule change; D7 is the client's reading of an unknown type, not a spec rule |
-| New or changed public type or method in `client-api` | Javadoc on that type | Update: `Client`, `ClientListener`, `ClientBuilder`, `EndpointHandle#unregister`, `DisconnectInfo`, `DisconnectOrigin`, `DisconnectType`, `package-info` |
+| New or changed public type or method in `client-api` | Javadoc on that type | Update: `Client`, `ClientListener`, `ClientBuilder`, `EndpointHandle#unregister`, `DisconnectInfo`, `DisconnectType`, `package-info` |
 | A design decision, layer rule or convention | `CLAUDE.md` | Update `client-api/CLAUDE.md`: keep the D1/D2 and D5/D6 lines (the latter adds "or on the `ClientBuilder` before connecting"); drop the D8 line; extend "`Client` has no `connect()` and no settings; an implementation's builder creates it" with "and implements `ClientBuilder` (`addListener`, `connect()`); every other builder setting is the implementation's (BD-0005 D10)". Root `CLAUDE.md` § API design decisions, the ADR 0018 line: add "which implements `client-api`'s `ClientBuilder`", linking BD-0005 D10 |
 | ADR the decision touches | `docs/decisions/0018-...` | N/A: D10 decides what 0018 leaves open and contradicts nothing in its Decision; no ADR edit |
 
